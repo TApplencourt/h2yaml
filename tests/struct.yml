@@ -1,0 +1,81 @@
+---
+structs:
+- name: A0
+  members:
+  - name: x
+    type:
+      kind: int
+      name: int
+- name: A1
+  members:
+  - name: x
+    type:
+      kind: int
+      name: int
+- name: A2
+  members:
+  - type:
+      kind: struct
+      members:
+      - name: x
+        type:
+          kind: int
+          name: int
+- name: A3
+  members:
+  - type:
+      kind: struct
+      members:
+      - name: x
+        type:
+          kind: int
+          name: int
+- name: B1
+  members:
+  - name: x
+    type:
+      kind: int
+      name: int
+- name: A4
+  members:
+  - name: a4
+    type:
+      kind: struct
+      name: B1
+- name: B5
+  members:
+  - name: x
+    type:
+      kind: int
+      name: int
+- name: A5
+  members:
+  - name: b
+    type:
+      kind: struct
+      name: B5
+- name: B6
+  members:
+  - name: x
+    type:
+      kind: int
+      name: int
+- name: A6
+  members:
+  - type:
+      kind: union
+      members:
+      - name: b
+        type:
+          kind: struct
+          name: B6
+typedefs:
+- name: a5
+  type:
+    kind: struct
+    name: A5
+declarations:
+- name: a
+  type:
+    kind: struct
+    name: A1

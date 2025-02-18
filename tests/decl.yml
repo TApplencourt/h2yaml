@@ -1,0 +1,30 @@
+---
+declarations:
+- name: a0
+  type:
+    kind: int
+    name: int
+- name: a1
+  type:
+    kind: pointer
+    type:
+      kind: char
+      name: char
+- name: a2
+  type:
+    kind: pointer
+    type:
+      kind: pointer
+      type:
+        kind: int
+        name: int
+- name: a3
+  type:
+    kind: pointer
+    type:
+      kind: pointer
+      type:
+        kind: pointer
+        type:
+          kind: int
+          name: long
