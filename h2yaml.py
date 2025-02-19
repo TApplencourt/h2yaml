@@ -95,7 +95,11 @@ def parse_function_decl(t):
 
 
 def parse_function_proto(t):
+
+
     def parse_argument_type(t):
+        # Todo: Get `name`?
+        # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
         return {"type": parse_type(t)}
 
     d = {"type": parse_type(t.get_result())}
