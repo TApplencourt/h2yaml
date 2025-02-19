@@ -2,6 +2,7 @@ import sys
 from functools import cache
 import clang.cindex
 import yaml
+import type_enforced
 
 #   ___
 #    |    ._   _
@@ -27,23 +28,30 @@ THAPI_types = {
 }
 
 
-def parse_type(t):
+@type_enforced.Enforcer
+def parse_type(t: clang.cindex.Type):
     match k := t.kind:
-        # node.type.spelling ??
         case _ if kind := THAPI_types.get(k):
             return {"kind": kind, "name": t.spelling}
-        case clang.cindex.CursorKind.STRUCT_DECL:
-            return {"kind": "struct"} | parse_union_struct_decl(t)
-        case clang.cindex.CursorKind.UNION_DECL:
-            return {"kind": "union"} | parse_union_struct_decl(t)
         case clang.cindex.TypeKind.POINTER:
             return {"kind": "pointer", "type": parse_type(t.get_pointee())}
         case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.RECORD:
-            return parse_type(t.get_declaration())
+            return parse_decl(t.get_declaration())
         case clang.cindex.TypeKind.FUNCTIONPROTO:
             return {"kind": "function"} | parse_function_proto(t)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_type: {k}")
+
+
+@type_enforced.Enforcer
+def parse_decl(c: clang.cindex.Cursor):
+    match k := c.kind:
+        case clang.cindex.CursorKind.STRUCT_DECL:
+            return {"kind": "struct"} | parse_union_struct_decl(c)
+        case clang.cindex.CursorKind.UNION_DECL:
+            return {"kind": "union"} | parse_union_struct_decl(c)
+        case _:  # pragma: no cover
+            raise NotImplementedError(f"parse_decl: {k}")
 
 
 #   ___                    _    _
@@ -63,11 +71,11 @@ def parse_typedef_decl(t):
 #   \  / _. ._   | \  _   _ |
 #    \/ (_| |    |_/ (/_ (_ |
 #
-def parse_var_decl(t):
+def parse_var_decl(c):
     DECLARATIONS["declarations"].append(
         {
-            "name": t.spelling,
-            "type": parse_type(t.type),
+            "name": c.spelling,
+            "type": parse_type(c.type),
         }
     )
 
@@ -76,34 +84,28 @@ def parse_var_decl(t):
 #   |_    ._   _ _|_ o  _  ._    | \  _   _ |
 #   | |_| | | (_  |_ | (_) | |   |_/ (/_ (_ |
 #
-def parse_function_decl(t):
-    def parse_argument(t):
-        if not t.spelling:
-            return {
-                "type": parse_type(t.type),
-            }
-        return {
-            "name": t.spelling,
-            "type": parse_type(t.type),
-        }
+def parse_function_decl(c):
+    def parse_argument(c):
+        d_type = {"type": parse_type(c.type)}
+        if not c.spelling:
+            return d_type
+        return {"name": c.spelling} | d_type
 
-    d = {"name": t.spelling, "type": parse_type(t.type.get_result())}
-    if params := [parse_argument(a) for a in t.get_arguments()]:
+    d = {"name": c.spelling, "type": parse_type(c.type.get_result())}
+    if params := [parse_argument(a) for a in c.get_arguments()]:
         d["params"] = params
 
     DECLARATIONS["functions"].append(d)
 
 
-def parse_function_proto(t):
-
-
-    def parse_argument_type(t):
+def parse_function_proto(c):
+    def parse_argument_type(c):
         # Todo: Get `name`?
         # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
-        return {"type": parse_type(t)}
+        return {"type": parse_type(c)}
 
-    d = {"type": parse_type(t.get_result())}
-    if params := [parse_argument_type(a) for a in t.argument_types()]:
+    d = {"type": parse_type(c.get_result())}
+    if params := [parse_argument_type(t) for t in c.argument_types()]:
         d["params"] = params
 
     return d
@@ -123,23 +125,20 @@ def parse_union_struct_decl(t):
         match k := t.kind:
             case clang.cindex.CursorKind.FIELD_DECL:
                 # If case of record, the field have no name
+                d_type = {"type": parse_type(t.type)}
                 if t.is_anonymous():
-                    return {"type": parse_type(t.type)}
-                return {"name": t.spelling, "type": parse_type(t.type)}
+                    return d_type
+                return {"name": t.spelling} | d_type
             case _:  # pragma: no cover
                 raise NotImplementedError(f"parse_field: {k}")
 
     # Hoisting
-    members = [parse_field(f) for f in t.type.get_fields()]
-
-    # Anonymous so need to get members, we cannot hoist
+    d_members = {"members": [parse_field(f) for f in t.type.get_fields()]}
     if t.is_anonymous():
-        return {"members": members}
-    # They have a name, they should:
-    # - be part of the `structs`
-    # - and when parents ask for it, just returning the `name`
-    DECLARATIONS["structs"].append({"name": t.spelling, "members": members})
-    return {"name": t.spelling}
+        return d_members
+    d_name = {"name": t.spelling}
+    DECLARATIONS["structs"].append(d_name | d_members)
+    return d_name
 
 
 #   ___
