@@ -38,7 +38,6 @@ def parse_type(t: clang.cindex.Type, c: clang.cindex.Cursor | None = None):
         case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.RECORD:
             return parse_decl(t.get_declaration())
         case clang.cindex.TypeKind.FUNCTIONPROTO:
-            # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
             return {"kind": "function"} | parse_function_proto(t, c)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_type: {k}")
@@ -114,11 +113,13 @@ def parse_function_decl(c: clang.cindex.Cursor):
 def parse_function_proto(t: clang.cindex.Type, c: clang.cindex.Cursor):
     d = {"type": parse_type(t.get_result())}
 
+    # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
     childrens = list(c.get_children())
     assert len(childrens) == len(t.argument_types())
     if params := [parse_argument(*a) for a in zip(childrens, t.argument_types())]:
         d["params"] = params
     return d
+
 
 #                          __                    _
 #   | | ._  o  _  ._      (_ _|_ ._     _ _|_   | \  _   _ |
@@ -148,10 +149,12 @@ def parse_struct_union_decl(c, name_decl):
     DECLARATIONS[name_decl].append(d_name | d_members)
     return d_name
 
+
 @cache
 @type_enforced.Enforcer
 def parse_struct_decl(c: clang.cindex.Cursor):
     return parse_struct_union_decl(c, "structs")
+
 
 @type_enforced.Enforcer
 def parse_union_decl(c: clang.cindex.Cursor):
@@ -162,6 +165,7 @@ def parse_union_decl(c: clang.cindex.Cursor):
 #   |_ ._      ._ _    | \  _   _ |
 #   |_ | | |_| | | |   |_/ (/_ (_ |
 #
+
 
 @cache
 @type_enforced.Enforcer
@@ -180,6 +184,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
     d_name = {"name": c.spelling}
     DECLARATIONS["enums"].append(d_name | d_members)
     return d_name
+
 
 #   ___
 #    | ._ _. ._   _ |  _. _|_ o  _  ._    | | ._  o _|_
