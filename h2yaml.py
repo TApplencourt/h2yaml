@@ -29,16 +29,17 @@ THAPI_types = {
 
 
 @type_enforced.Enforcer
-def parse_type(t: clang.cindex.Type):
+def parse_type(t: clang.cindex.Type, c: clang.cindex.Cursor | None = None):
     match k := t.kind:
         case _ if kind := THAPI_types.get(k):
             return {"kind": kind, "name": t.spelling}
         case clang.cindex.TypeKind.POINTER:
-            return {"kind": "pointer", "type": parse_type(t.get_pointee())}
+            return {"kind": "pointer", "type": parse_type(t.get_pointee(), c)}
         case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.RECORD:
             return parse_decl(t.get_declaration())
         case clang.cindex.TypeKind.FUNCTIONPROTO:
-            return {"kind": "function"} | parse_function_proto(t)
+            # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
+            return {"kind": "function"} | parse_function_proto(t, c)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_type: {k}")
 
@@ -50,6 +51,8 @@ def parse_decl(c: clang.cindex.Cursor):
             return {"kind": "struct"} | parse_union_struct_decl(c)
         case clang.cindex.CursorKind.UNION_DECL:
             return {"kind": "union"} | parse_union_struct_decl(c)
+        case clang.cindex.CursorKind.PARM_DECL:
+            return {"name": c.spelling}
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_decl: {k}")
 
@@ -58,11 +61,12 @@ def parse_decl(c: clang.cindex.Cursor):
 #    |    ._   _   _|  _ _|_   | \  _   _ |
 #    | \/ |_) (/_ (_| (/_ |    |_/ (/_ (_ |
 #      /  |
-def parse_typedef_decl(t):
+@type_enforced.Enforcer
+def parse_typedef_decl(c: clang.cindex.Cursor):
     DECLARATIONS["typedefs"].append(
         {
-            "name": t.spelling,
-            "type": parse_type(t.underlying_typedef_type),
+            "name": c.spelling,
+            "type": parse_type(c.underlying_typedef_type),
         }
     )
 
@@ -71,11 +75,12 @@ def parse_typedef_decl(t):
 #   \  / _. ._   | \  _   _ |
 #    \/ (_| |    |_/ (/_ (_ |
 #
-def parse_var_decl(c):
+@type_enforced.Enforcer
+def parse_var_decl(c: clang.cindex.Cursor):
     DECLARATIONS["declarations"].append(
         {
             "name": c.spelling,
-            "type": parse_type(c.type),
+            "type": parse_type(c.type, c),
         }
     )
 
@@ -84,13 +89,20 @@ def parse_var_decl(c):
 #   |_    ._   _ _|_ o  _  ._    | \  _   _ |
 #   | |_| | | (_  |_ | (_) | |   |_/ (/_ (_ |
 #
-def parse_function_decl(c):
-    def parse_argument(c):
-        d_type = {"type": parse_type(c.type)}
-        if not c.spelling:
-            return d_type
-        return {"name": c.spelling} | d_type
 
+
+@type_enforced.Enforcer
+def parse_argument(c: clang.cindex.Cursor, t: clang.cindex.Type | None = None):
+    if t is None:
+        t = c.type
+    d_type = {"type": parse_type(t)}
+    if not c.spelling:
+        return d_type
+    return {"name": c.spelling} | d_type
+
+
+@type_enforced.Enforcer
+def parse_function_decl(c: clang.cindex.Cursor):
     d = {"name": c.spelling, "type": parse_type(c.type.get_result())}
     if params := [parse_argument(a) for a in c.get_arguments()]:
         d["params"] = params
@@ -98,16 +110,14 @@ def parse_function_decl(c):
     DECLARATIONS["functions"].append(d)
 
 
-def parse_function_proto(c):
-    def parse_argument_type(c):
-        # Todo: Get `name`?
-        # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
-        return {"type": parse_type(c)}
+@type_enforced.Enforcer
+def parse_function_proto(t: clang.cindex.Type, c: clang.cindex.Cursor):
+    d = {"type": parse_type(t.get_result())}
 
-    d = {"type": parse_type(c.get_result())}
-    if params := [parse_argument_type(t) for t in c.argument_types()]:
+    childrens = list(c.get_children())
+    assert len(childrens) == len(t.argument_types())
+    if params := [parse_argument(*a) for a in zip(childrens, t.argument_types())]:
         d["params"] = params
-
     return d
 
 

@@ -52,7 +52,8 @@ declarations:
         kind: void
         name: void
       params:
-      - type:
+      - name: a
+        type:
           kind: float
           name: double
       - type:
