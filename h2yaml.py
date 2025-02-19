@@ -96,8 +96,6 @@ def parse_var_decl(c: clang.cindex.Cursor):
 #   |_    ._   _ _|_ o  _  ._    | \  _   _ |
 #   | |_| | | (_  |_ | (_) | |   |_/ (/_ (_ |
 #
-
-
 @type_enforced.Enforcer
 def parse_argument(c: clang.cindex.Cursor, t: clang.cindex.Type | None = None):
     if t is None:
@@ -137,7 +135,8 @@ def parse_function_proto(t: clang.cindex.Type, c: clang.cindex.Cursor):
 # - One for typedef `TYPEDEF_DECL.underlying_typedef_type`
 # - and one for `STRUCT_DECL`
 # so we cache to avoid appending twice to DECLARATIONS['structs']
-def parse_struct_union_decl(c, name_decl):
+@type_enforced.Enforcer
+def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
     def parse_field(c):
         match k := c.kind:
             case clang.cindex.CursorKind.FIELD_DECL:
