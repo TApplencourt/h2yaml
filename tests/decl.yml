@@ -28,3 +28,33 @@ declarations:
         type:
           kind: int
           name: long
+- name: a4
+  type:
+    kind: pointer
+    type:
+      kind: function
+      type:
+        kind: void
+        name: void
+      params:
+      - type:
+          kind: float
+          name: double
+      - type:
+          kind: int
+          name: int
+- name: a5
+  type:
+    kind: pointer
+    type:
+      kind: function
+      type:
+        kind: void
+        name: void
+      params:
+      - type:
+          kind: float
+          name: double
+      - type:
+          kind: int
+          name: int

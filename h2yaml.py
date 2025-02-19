@@ -1,7 +1,7 @@
-import clang.cindex
-import yaml
 import sys
 from functools import cache
+import clang.cindex
+import yaml
 
 #   ___
 #    |    ._   _
@@ -32,14 +32,16 @@ def parse_type(t):
         # node.type.spelling ??
         case _ if kind := THAPI_types.get(k):
             return {"kind": kind, "name": t.spelling}
-        case clang.cindex.TypeKind.POINTER:
-            return {"kind": "pointer", "type": parse_type(t.get_pointee())}
         case clang.cindex.CursorKind.STRUCT_DECL:
             return {"kind": "struct"} | parse_union_struct_decl(t)
         case clang.cindex.CursorKind.UNION_DECL:
             return {"kind": "union"} | parse_union_struct_decl(t)
+        case clang.cindex.TypeKind.POINTER:
+            return {"kind": "pointer", "type": parse_type(t.get_pointee())}
         case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.RECORD:
             return parse_type(t.get_declaration())
+        case clang.cindex.TypeKind.FUNCTIONPROTO:
+            return {"kind": "function"} | parse_function_proto(t)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_type: {k}")
 
@@ -62,16 +64,45 @@ def parse_typedef_decl(t):
 #    \/ (_| |    |_/ (/_ (_ |
 #
 def parse_var_decl(t):
-    #    print(t.spelling, t.type.kind, t.kind)
-    #    for a in t.get_children():
-    #        print (a.kind)
-
     DECLARATIONS["declarations"].append(
         {
             "name": t.spelling,
             "type": parse_type(t.type),
         }
     )
+
+
+#    _                            _
+#   |_    ._   _ _|_ o  _  ._    | \  _   _ |
+#   | |_| | | (_  |_ | (_) | |   |_/ (/_ (_ |
+#
+def parse_function_decl(t):
+    def parse_argument(t):
+        if not t.spelling:
+            return {
+                "type": parse_type(t.type),
+            }
+        return {
+            "name": t.spelling,
+            "type": parse_type(t.type),
+        }
+
+    d = {"name": t.spelling, "type": parse_type(t.type.get_result())}
+    if params := [parse_argument(a) for a in t.get_arguments()]:
+        d["params"] = params
+
+    DECLARATIONS["functions"].append(d)
+
+
+def parse_function_proto(t):
+    def parse_argument_type(t):
+        return {"type": parse_type(t)}
+
+    d = {"type": parse_type(t.get_result())}
+    if params := [parse_argument_type(a) for a in t.argument_types()]:
+        d["params"] = params
+
+    return d
 
 
 #                          __                    _
@@ -121,6 +152,8 @@ def parse_translation_unit(t):
                 parse_typedef_decl(c)
             case clang.cindex.CursorKind.VAR_DECL:
                 parse_var_decl(c)
+            case clang.cindex.CursorKind.FUNCTION_DECL:
+                parse_function_decl(c)
             case _:  # pragma: no cover
                 raise NotImplementedError(f"parse_translation_unit: {k}")
 
@@ -134,7 +167,13 @@ def h2yaml_main(path, *args, **kwargs):
     #    "/opt/aurora/24.180.3/frameworks/aurora_nre_models_frameworks-2024.2.1_u1/lib/python3.10/site-packages/clang/native/libclang.so"
     # )
     global DECLARATIONS
-    DECLARATIONS = {"structs": [], "unions": [], "typedefs": [], "declarations": []}
+    DECLARATIONS = {
+        "structs": [],
+        "unions": [],
+        "typedefs": [],
+        "declarations": [],
+        "functions": [],
+    }
 
     t = clang.cindex.Index.create().parse(path, *args, **kwargs).cursor
     parse_translation_unit(t)

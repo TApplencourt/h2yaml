@@ -1,0 +1,39 @@
+---
+structs:
+- name: a
+  members:
+  - name: i
+    type:
+      kind: int
+      name: int
+functions:
+- name: f0
+  type:
+    kind: void
+    name: void
+  params:
+  - type:
+      kind: int
+      name: int
+- name: f1
+  type:
+    kind: void
+    name: void
+  params:
+  - name: b
+    type:
+      kind: int
+      name: int
+- name: f2
+  type:
+    kind: void
+    name: void
+- name: f3
+  type:
+    kind: struct
+    name: a
+  params:
+  - name: x
+    type:
+      kind: struct
+      name: a
