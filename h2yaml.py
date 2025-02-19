@@ -155,7 +155,7 @@ def parse_struct_union_decl(c, name_decl):
 def parse_struct_decl(c: clang.cindex.Cursor):
     return parse_struct_union_decl(c, "structs")
 
-
+@cache
 @type_enforced.Enforcer
 def parse_union_decl(c: clang.cindex.Cursor):
     return parse_struct_union_decl(c, "unions")

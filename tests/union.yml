@@ -1,0 +1,24 @@
+---
+unions:
+- name: A_t
+  members:
+  - name: A0
+    type:
+      kind: int
+      name: int
+  - name: B0
+    type:
+      kind: float
+      name: float
+functions:
+- name: foo
+  type:
+    kind: void
+    name: void
+  params:
+  - name: bar
+    type:
+      kind: pointer
+      type:
+        kind: union
+        name: A_t
