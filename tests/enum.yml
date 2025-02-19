@@ -1,0 +1,49 @@
+---
+structs:
+- name: S0
+  members:
+  - name: bar
+    type:
+      kind: pointer
+      type:
+        kind: enum
+        name: B
+unions:
+- name: S1
+  members:
+  - name: bar
+    type:
+      kind: pointer
+      type:
+        kind: enum
+        name: C
+typedefs:
+- name: D_t
+  type:
+    kind: enum
+    members:
+    - name: D0
+      val: 0
+- name: E_t
+  type:
+    kind: enum
+    name: E
+enums:
+- name: A
+  members:
+  - name: A0
+    val: 0
+- name: B
+  members:
+  - name: B0
+    val: 1
+- name: C
+  members:
+  - name: C0
+    val: 1
+  - name: C1
+    val: 2
+- name: E
+  members:
+  - name: E0
+    val: 0

@@ -48,11 +48,11 @@ def parse_type(t: clang.cindex.Type, c: clang.cindex.Cursor | None = None):
 def parse_decl(c: clang.cindex.Cursor):
     match k := c.kind:
         case clang.cindex.CursorKind.STRUCT_DECL:
-            return {"kind": "struct"} | parse_union_struct_decl(c)
+            return {"kind": "struct"} | parse_struct_decl(c)
         case clang.cindex.CursorKind.UNION_DECL:
-            return {"kind": "union"} | parse_union_struct_decl(c)
-        case clang.cindex.CursorKind.PARM_DECL:
-            return {"name": c.spelling}
+            return {"kind": "union"} | parse_union_decl(c)
+        case clang.cindex.CursorKind.ENUM_DECL:
+            return {"kind": "enum"} | parse_enum_decl(c)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_decl: {k}")
 
@@ -120,7 +120,6 @@ def parse_function_proto(t: clang.cindex.Type, c: clang.cindex.Cursor):
         d["params"] = params
     return d
 
-
 #                          __                    _
 #   | | ._  o  _  ._      (_ _|_ ._     _ _|_   | \  _   _ |
 #   |_| | | | (_) | | o   __) |_ | |_| (_  |_   |_/ (/_ (_ |
@@ -128,28 +127,59 @@ def parse_function_proto(t: clang.cindex.Type, c: clang.cindex.Cursor):
 # `typedef struct` will recurse twice into this function:
 # - One for typedef `TYPEDEF_DECL.underlying_typedef_type`
 # - and one for `STRUCT_DECL`
-# so we cache to avoid appending twice to DECLARATIONS
-@cache
-def parse_union_struct_decl(t):
-    def parse_field(t):
-        match k := t.kind:
+# so we cache to avoid appending twice to DECLARATIONS['structs']
+def parse_struct_union_decl(c, name_decl):
+    def parse_field(c):
+        match k := c.kind:
             case clang.cindex.CursorKind.FIELD_DECL:
                 # If case of record, the field have no name
-                d_type = {"type": parse_type(t.type)}
-                if t.is_anonymous():
+                d_type = {"type": parse_type(c.type)}
+                if c.is_anonymous():
                     return d_type
-                return {"name": t.spelling} | d_type
+                return {"name": c.spelling} | d_type
             case _:  # pragma: no cover
                 raise NotImplementedError(f"parse_field: {k}")
 
     # Hoisting
-    d_members = {"members": [parse_field(f) for f in t.type.get_fields()]}
-    if t.is_anonymous():
+    d_members = {"members": [parse_field(f) for f in c.type.get_fields()]}
+    if c.is_anonymous():
         return d_members
-    d_name = {"name": t.spelling}
-    DECLARATIONS["structs"].append(d_name | d_members)
+    d_name = {"name": c.spelling}
+    DECLARATIONS[name_decl].append(d_name | d_members)
     return d_name
 
+@cache
+@type_enforced.Enforcer
+def parse_struct_decl(c: clang.cindex.Cursor):
+    return parse_struct_union_decl(c, "structs")
+
+@type_enforced.Enforcer
+def parse_union_decl(c: clang.cindex.Cursor):
+    return parse_struct_union_decl(c, "unions")
+
+
+#    _                  _
+#   |_ ._      ._ _    | \  _   _ |
+#   |_ | | |_| | | |   |_/ (/_ (_ |
+#
+
+@cache
+@type_enforced.Enforcer
+def parse_enum_decl(c: clang.cindex.Cursor):
+    # Enum cannot be nested
+
+    def parse_enum_member(c):
+        return {"name": c.spelling, "val": c.enum_value}
+
+    # Hoisting
+    d_members = {"members": [parse_enum_member(f) for f in c.get_children()]}
+    # Check of anonymous `enum`
+    # Black Magic: https://stackoverflow.com/a/35184821
+    if "@EA@" in c.get_usr():
+        return d_members
+    d_name = {"name": c.spelling}
+    DECLARATIONS["enums"].append(d_name | d_members)
+    return d_name
 
 #   ___
 #    | ._ _. ._   _ |  _. _|_ o  _  ._    | | ._  o _|_
@@ -160,13 +190,17 @@ def parse_translation_unit(t):
     for c in user_children:
         match k := c.kind:
             case clang.cindex.CursorKind.STRUCT_DECL:
-                parse_union_struct_decl(c)
+                parse_struct_decl(c)
+            case clang.cindex.CursorKind.UNION_DECL:
+                parse_union_decl(c)
             case clang.cindex.CursorKind.TYPEDEF_DECL:
                 parse_typedef_decl(c)
             case clang.cindex.CursorKind.VAR_DECL:
                 parse_var_decl(c)
             case clang.cindex.CursorKind.FUNCTION_DECL:
                 parse_function_decl(c)
+            case clang.cindex.CursorKind.ENUM_DECL:
+                parse_enum_decl(c)
             case _:  # pragma: no cover
                 raise NotImplementedError(f"parse_translation_unit: {k}")
 
@@ -186,6 +220,7 @@ def h2yaml_main(path, *args, **kwargs):
         "typedefs": [],
         "declarations": [],
         "functions": [],
+        "enums": [],
     }
 
     t = clang.cindex.Index.create().parse(path, *args, **kwargs).cursor
