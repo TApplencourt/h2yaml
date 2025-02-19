@@ -37,6 +37,14 @@ def parse_type(t: clang.cindex.Type, c: clang.cindex.Cursor | None = None):
             return {"kind": "pointer", "type": parse_type(t.get_pointee(), c)}
         case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.RECORD:
             return parse_decl(t.get_declaration())
+        case clang.cindex.TypeKind.CONSTANTARRAY:
+            return {
+                "kind": "array",
+                "type": parse_type(t.element_type),
+                "length": t.element_count,
+            }
+        case clang.cindex.TypeKind.INCOMPLETEARRAY:
+            return {"kind": "array", "type": parse_type(t.element_type)}
         case clang.cindex.TypeKind.FUNCTIONPROTO:
             return {"kind": "function"} | parse_function_proto(t, c)
         case _:  # pragma: no cover

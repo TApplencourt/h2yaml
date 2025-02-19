@@ -1,0 +1,22 @@
+---
+declarations:
+- name: A
+  type:
+    kind: array
+    type:
+      kind: array
+      type:
+        kind: char
+        name: char
+      length: 10
+    length: 5
+- name: B
+  type:
+    kind: array
+    type:
+      kind: array
+      type:
+        kind: char
+        name: char
+      length: 10
+    length: 1
