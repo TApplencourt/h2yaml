@@ -1,0 +1,17 @@
+[project]
+name = "h2yaml"
+version = "0.1"
+requires-python = ">= 3.8"
+dependencies = [
+  "libclang",
+  "type_enforced"
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest",
+  "coverage"
+]
+
+[tool.setuptools]
+py-modules = ["h2yaml"]
