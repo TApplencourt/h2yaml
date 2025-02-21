@@ -61,7 +61,7 @@ def parse_decl(c: clang.cindex.Cursor):
         case clang.cindex.CursorKind.ENUM_DECL:
             return {"kind": "enum"} | parse_enum_decl(c)
         case clang.cindex.CursorKind.TYPEDEF_DECL:
-            return parse_typedef_decl(c)
+            return {"kind": "custom_type"} | parse_typedef_decl(c)
         case clang.cindex.CursorKind.FUNCTION_DECL:
             return parse_function_decl(c)
         case clang.cindex.CursorKind.VAR_DECL:
@@ -74,16 +74,14 @@ def parse_decl(c: clang.cindex.Cursor):
 #    |    ._   _   _|  _ _|_   | \  _   _ |
 #    | \/ |_) (/_ (_| (/_ |    |_/ (/_ (_ |
 #      /  |
+@cache
 @type_enforced.Enforcer
 def parse_typedef_decl(c: clang.cindex.Cursor):
-
-    type_ = parse_type(c.underlying_typedef_type, c)
+    name = {"name": c.spelling}
     DECLARATIONS["typedefs"].append(
-        {
-            "name": c.spelling,
-            "type": type_,
-        }
+        name | {"type": parse_type(c.underlying_typedef_type, c)}
     )
+    return name
 
 
 #                 _
@@ -92,9 +90,6 @@ def parse_typedef_decl(c: clang.cindex.Cursor):
 #
 @type_enforced.Enforcer
 def parse_var_decl(c: clang.cindex.Cursor):
-
-    type_ = parse_type(c.type, c)
-
     # Assume all INCOMPLETEARRAY types will eventually be completed.
     # This works because libclang treats `a[]` as:
     # `tentative array definition assumed to have one element`
@@ -104,7 +99,7 @@ def parse_var_decl(c: clang.cindex.Cursor):
     DECLARATIONS["declarations"].append(
         {
             "name": c.spelling,
-            "type": type_,
+            "type": parse_type(c.type, c),
         }
     )
 
@@ -196,7 +191,6 @@ def parse_union_decl(c: clang.cindex.Cursor):
 @type_enforced.Enforcer
 def parse_enum_decl(c: clang.cindex.Cursor):
     # Enum cannot be nested
-
     def parse_enum_member(c):
         return {"name": c.spelling, "val": c.enum_value}
 

@@ -8,6 +8,12 @@ structs:
       type:
         kind: enum
         name: B
+- name: G
+  members:
+  - name: f
+    type:
+      kind: custom_type
+      name: F
 unions:
 - name: S1
   members:
@@ -28,6 +34,14 @@ typedefs:
   type:
     kind: enum
     name: E
+- name: F
+  type:
+    kind: enum
+    name: F
+- name: G
+  type:
+    kind: struct
+    name: G
 enums:
 - name: A
   members:
@@ -47,3 +61,7 @@ enums:
   members:
   - name: E0
     val: 0
+- name: F
+  members:
+  - name: F0
+    val: 10
