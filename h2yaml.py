@@ -60,9 +60,14 @@ def parse_decl(c: clang.cindex.Cursor):
             return {"kind": "union"} | parse_union_decl(c)
         case clang.cindex.CursorKind.ENUM_DECL:
             return {"kind": "enum"} | parse_enum_decl(c)
+        case clang.cindex.CursorKind.TYPEDEF_DECL:
+            return parse_typedef_decl(c)
+        case clang.cindex.CursorKind.FUNCTION_DECL:
+            return parse_function_decl(c)
+        case clang.cindex.CursorKind.VAR_DECL:
+            return parse_var_decl(c)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_decl: {k}")
-
 
 #   ___                    _    _
 #    |    ._   _   _|  _ _|_   | \  _   _ |
@@ -73,7 +78,7 @@ def parse_typedef_decl(c: clang.cindex.Cursor):
     DECLARATIONS["typedefs"].append(
         {
             "name": c.spelling,
-            "type": parse_type(c.underlying_typedef_type),
+            "type": parse_type(c.underlying_typedef_type, c),
         }
     )
 
@@ -200,22 +205,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 def parse_translation_unit(t):
     user_children = [c for c in t.get_children() if not c.location.is_in_system_header]
     for c in user_children:
-        match k := c.kind:
-            case clang.cindex.CursorKind.STRUCT_DECL:
-                parse_struct_decl(c)
-            case clang.cindex.CursorKind.UNION_DECL:
-                parse_union_decl(c)
-            case clang.cindex.CursorKind.TYPEDEF_DECL:
-                parse_typedef_decl(c)
-            case clang.cindex.CursorKind.VAR_DECL:
-                parse_var_decl(c)
-            case clang.cindex.CursorKind.FUNCTION_DECL:
-                parse_function_decl(c)
-            case clang.cindex.CursorKind.ENUM_DECL:
-                parse_enum_decl(c)
-            case _:  # pragma: no cover
-                raise NotImplementedError(f"parse_translation_unit: {k}")
-
+        parse_decl(c)
 
 #
 #   |\/|  _. o ._

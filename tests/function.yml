@@ -6,6 +6,19 @@ structs:
     type:
       kind: int
       name: int
+typedefs:
+- name: a_t
+  type:
+    kind: pointer
+    type:
+      kind: function
+      type:
+        kind: int
+        name: int
+      params:
+      - type:
+          kind: int
+          name: int
 functions:
 - name: f0
   type:
