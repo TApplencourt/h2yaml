@@ -69,16 +69,19 @@ def parse_decl(c: clang.cindex.Cursor):
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_decl: {k}")
 
+
 #   ___                    _    _
 #    |    ._   _   _|  _ _|_   | \  _   _ |
 #    | \/ |_) (/_ (_| (/_ |    |_/ (/_ (_ |
 #      /  |
 @type_enforced.Enforcer
 def parse_typedef_decl(c: clang.cindex.Cursor):
+
+    type_ = parse_type(c.underlying_typedef_type, c)
     DECLARATIONS["typedefs"].append(
         {
             "name": c.spelling,
-            "type": parse_type(c.underlying_typedef_type, c),
+            "type": type_,
         }
     )
 
@@ -89,10 +92,19 @@ def parse_typedef_decl(c: clang.cindex.Cursor):
 #
 @type_enforced.Enforcer
 def parse_var_decl(c: clang.cindex.Cursor):
+
+    type_ = parse_type(c.type, c)
+
+    # Assume all INCOMPLETEARRAY types will eventually be completed.
+    # This works because libclang treats `a[]` as:
+    # `tentative array definition assumed to have one element`
+    # As a result, it will be parsed as a `CONSTANTARRAY`
+    if c.type.kind == clang.cindex.TypeKind.INCOMPLETEARRAY:
+        return
     DECLARATIONS["declarations"].append(
         {
             "name": c.spelling,
-            "type": parse_type(c.type, c),
+            "type": type_,
         }
     )
 
@@ -167,6 +179,7 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
 def parse_struct_decl(c: clang.cindex.Cursor):
     return parse_struct_union_decl(c, "structs")
 
+
 @cache
 @type_enforced.Enforcer
 def parse_union_decl(c: clang.cindex.Cursor):
@@ -206,6 +219,7 @@ def parse_translation_unit(t):
     user_children = [c for c in t.get_children() if not c.location.is_in_system_header]
     for c in user_children:
         parse_decl(c)
+
 
 #
 #   |\/|  _. o ._

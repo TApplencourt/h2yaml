@@ -50,3 +50,14 @@ functions:
     type:
       kind: struct
       name: a
+- name: f4
+  type:
+    kind: int
+    name: int
+  params:
+  - name: a
+    type:
+      kind: array
+      type:
+        kind: int
+        name: int

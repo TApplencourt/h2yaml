@@ -59,3 +59,17 @@ declarations:
       - type:
           kind: int
           name: int
+- name: a6
+  type:
+    kind: array
+    type:
+      kind: int
+      name: int
+    length: 1
+- name: a7
+  type:
+    kind: array
+    type:
+      kind: int
+      name: int
+    length: 25
