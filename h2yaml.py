@@ -219,7 +219,7 @@ def parse_translation_unit(t):
 #   |\/|  _. o ._
 #   |  | (_| | | |
 #
-def h2yaml_main(path, *args, **kwargs):
+def h2yaml(path, *args, **kwargs):
     # clang.cindex.Config.set_library_file(
     #    "/opt/aurora/24.180.3/frameworks/aurora_nre_models_frameworks-2024.2.1_u1/lib/python3.10/site-packages/clang/native/libclang.so"
     # )
@@ -245,4 +245,4 @@ def h2yaml_main(path, *args, **kwargs):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    print(h2yaml_main(sys.argv[1], args=sys.argv[2:]))
+    print(h2yaml(sys.argv[1], args=sys.argv[2:]))
