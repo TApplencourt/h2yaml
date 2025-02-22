@@ -3,6 +3,7 @@ name = "h2yaml"
 version = "0.1"
 requires-python = ">= 3.8"
 dependencies = [
+  "pyyaml",
   "libclang",
   "type_enforced"
 ]
