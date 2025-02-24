@@ -219,6 +219,9 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 #    | | (_| | | _> | (_|  |_ | (_) | |   |_| | | |  |_
 #
 def parse_translation_unit(t):
+    for c in t.get_children():
+        print(c.location, c.location.is_in_system_header)
+
     user_children = [c for c in t.get_children() if not c.location.is_in_system_header]
     for c in user_children:
         parse_decl(c)
@@ -228,7 +231,17 @@ def parse_translation_unit(t):
 #   |\/|  _. o ._
 #   |  | (_| | | |
 #
-def h2yaml(path, *args, **kwargs):
+def check_diagnostic(t):
+    error = 0
+    for diagnostic in t.diagnostics:
+        print(f"clang diagnostic: {diagnostic}")
+        # diagnostic message can containt "error" or "warning"
+        error += "error" in str(diagnostic)
+    if error:
+        sys.exit(1)
+
+
+def h2yaml(path, args=None):
     # clang.cindex.Config.set_library_file(
     #    "/opt/aurora/24.180.3/frameworks/aurora_nre_models_frameworks-2024.2.1_u1/lib/python3.10/site-packages/clang/native/libclang.so"
     # )
@@ -241,10 +254,10 @@ def h2yaml(path, *args, **kwargs):
         "functions": [],
         "enums": [],
     }
+    t = clang.cindex.Index.create().parse(path, args=args)
+    check_diagnostic(t)
 
-    t = clang.cindex.Index.create().parse(path, *args, **kwargs).cursor
-    parse_translation_unit(t)
-
+    parse_translation_unit(t.cursor)
     d = {k: v for k, v in DECLARATIONS.items() if v}
     return yaml.dump(
         d,

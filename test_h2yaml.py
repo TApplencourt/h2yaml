@@ -3,7 +3,7 @@ import pytest
 from h2yaml import h2yaml
 import yaml
 
-filenames = [str(p.with_suffix("")) for p in pathlib.Path("./tests/").glob("*.h")]
+filenames = [str(p.with_suffix("")) for p in pathlib.Path("./tests/").glob("*.yml")]
 
 @pytest.mark.parametrize("filename", filenames)
 def test_cmp_to_ref(filename):
