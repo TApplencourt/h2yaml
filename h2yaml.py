@@ -78,9 +78,11 @@ def parse_decl(c: clang.cindex.Cursor):
 @type_enforced.Enforcer
 def parse_typedef_decl(c: clang.cindex.Cursor):
     name = {"name": c.spelling}
-    DECLARATIONS["typedefs"].append(
-        name | {"type": parse_type(c.underlying_typedef_type, c)}
-    )
+
+    if not(c.location.is_in_system_header):
+        DECLARATIONS["typedefs"].append(
+            name | {"type": parse_type(c.underlying_typedef_type, c)}
+        )
     return name
 
 
@@ -219,9 +221,6 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 #    | | (_| | | _> | (_|  |_ | (_) | |   |_| | | |  |_
 #
 def parse_translation_unit(t):
-    for c in t.get_children():
-        print(c.location, c.location.is_in_system_header)
-
     user_children = [c for c in t.get_children() if not c.location.is_in_system_header]
     for c in user_children:
         parse_decl(c)
@@ -234,7 +233,7 @@ def parse_translation_unit(t):
 def check_diagnostic(t):
     error = 0
     for diagnostic in t.diagnostics:
-        print(f"clang diagnostic: {diagnostic}")
+        print(f"clang diagnostic: {diagnostic}",file=sys.stderr)
         # diagnostic message can containt "error" or "warning"
         error += "error" in str(diagnostic)
     if error:

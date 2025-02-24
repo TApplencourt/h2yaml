@@ -1,13 +1,5 @@
 ---
 typedefs:
-- name: __uint64_t
-  type:
-    kind: int
-    name: unsigned long
-- name: uint64_t
-  type:
-    kind: custom_type
-    name: __uint64_t
 - name: a7_t
   type:
     kind: int
