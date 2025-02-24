@@ -1,6 +1,14 @@
 ---
 typedefs:
-- name: a6_t
+- name: __uint64_t
+  type:
+    kind: int
+    name: unsigned long
+- name: uint64_t
+  type:
+    kind: custom_type
+    name: __uint64_t
+- name: a7_t
   type:
     kind: int
     name: int
@@ -11,11 +19,15 @@ declarations:
     name: int
 - name: a1
   type:
+    kind: custom_type
+    name: uint64_t
+- name: a2
+  type:
     kind: pointer
     type:
       kind: char
       name: char
-- name: a2
+- name: a3
   type:
     kind: pointer
     type:
@@ -23,7 +35,7 @@ declarations:
       type:
         kind: int
         name: int
-- name: a3
+- name: a4
   type:
     kind: pointer
     type:
@@ -33,7 +45,7 @@ declarations:
         type:
           kind: int
           name: long
-- name: a4
+- name: a5
   type:
     kind: pointer
     type:
@@ -48,7 +60,7 @@ declarations:
       - type:
           kind: int
           name: int
-- name: a5
+- name: a6
   type:
     kind: pointer
     type:
@@ -64,25 +76,18 @@ declarations:
       - type:
           kind: int
           name: int
-- name: a6
+- name: a7
   type:
     kind: pointer
     type:
       kind: function
       type:
         kind: custom_type
-        name: a6_t
+        name: a7_t
       params:
       - type:
           kind: custom_type
-          name: a6_t
-- name: a7
-  type:
-    kind: array
-    type:
-      kind: int
-      name: int
-    length: 1
+          name: a7_t
 - name: a8
   type:
     kind: array
@@ -91,6 +96,13 @@ declarations:
       name: int
     length: 1
 - name: a9
+  type:
+    kind: array
+    type:
+      kind: int
+      name: int
+    length: 1
+- name: a10
   type:
     kind: array
     type:

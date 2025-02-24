@@ -1,15 +1,19 @@
+#include <stdint.h>
+
 int a0;
-char *a1;
-int **a2;
-long ***a3;
+uint64_t a1;
 
-void (*a4)(double, int);
-void (*a5)(double a, int);
+char *a2;
+int **a3;
+long ***a4;
 
-typedef int a6_t;
-a6_t (*a6)(a6_t);
+void (*a5)(double, int);
+void (*a6)(double a, int);
 
-int a7[];
+typedef int a7_t;
+a7_t (*a7)(a7_t);
 
 int a8[];
-int a9[25];
+
+int a9[];
+int a10[25];
