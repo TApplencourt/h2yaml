@@ -78,11 +78,11 @@ def parse_decl(c: clang.cindex.Cursor):
 @type_enforced.Enforcer
 def parse_typedef_decl(c: clang.cindex.Cursor):
     name = {"name": c.spelling}
-
-    if not(c.location.is_in_system_header):
-        DECLARATIONS["typedefs"].append(
-            name | {"type": parse_type(c.underlying_typedef_type, c)}
-        )
+    # Stop recursing, and don't append if
+    # the typedef is defined by system header
+    if not (c.location.is_in_system_header):
+        type_ = parse_type(c.underlying_typedef_type, c)
+        DECLARATIONS["typedefs"].append(name | {"type": type_})
     return name
 
 
@@ -233,8 +233,8 @@ def parse_translation_unit(t):
 def check_diagnostic(t):
     error = 0
     for diagnostic in t.diagnostics:
-        print(f"clang diagnostic: {diagnostic}",file=sys.stderr)
-        # diagnostic message can containt "error" or "warning"
+        print(f"clang diagnostic: {diagnostic}", file=sys.stderr)
+        # diagnostic message can contain "error" or "warning"
         error += "error" in str(diagnostic)
     if error:
         sys.exit(1)
