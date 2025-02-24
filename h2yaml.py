@@ -3,6 +3,19 @@ from functools import cache
 import clang.cindex
 import yaml
 import type_enforced
+import os
+
+
+@property
+def is_in_system_header2(self):
+    if self.is_in_system_header:
+        return True
+
+    basename = os.path.basename(self.file.name)
+    return any(basename.startswith(s) for s in ["std", "__std"])
+
+
+clang.cindex.SourceLocation.is_in_system_header2 = is_in_system_header2
 
 #   ___
 #    |    ._   _
@@ -80,7 +93,7 @@ def parse_typedef_decl(c: clang.cindex.Cursor):
     name = {"name": c.spelling}
     # Stop recursing, and don't append if
     # the typedef is defined by system header
-    if not (c.location.is_in_system_header):
+    if not (c.location.is_in_system_header2):
         type_ = parse_type(c.underlying_typedef_type, c)
         DECLARATIONS["typedefs"].append(name | {"type": type_})
     return name
@@ -221,7 +234,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 #    | | (_| | | _> | (_|  |_ | (_) | |   |_| | | |  |_
 #
 def parse_translation_unit(t):
-    user_children = [c for c in t.get_children() if not c.location.is_in_system_header]
+    user_children = [c for c in t.get_children() if not c.location.is_in_system_header2]
     for c in user_children:
         parse_decl(c)
 
@@ -236,14 +249,11 @@ def check_diagnostic(t):
         print(f"clang diagnostic: {diagnostic}", file=sys.stderr)
         # diagnostic message can contain "error" or "warning"
         error += "error" in str(diagnostic)
-    if error:
+    if error: # pragma: no cover // No negatif test yet
         sys.exit(1)
 
 
 def h2yaml(path, args=None):
-    # clang.cindex.Config.set_library_file(
-    #    "/opt/aurora/24.180.3/frameworks/aurora_nre_models_frameworks-2024.2.1_u1/lib/python3.10/site-packages/clang/native/libclang.so"
-    # )
     global DECLARATIONS
     DECLARATIONS = {
         "structs": [],
