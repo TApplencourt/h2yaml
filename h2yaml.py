@@ -113,7 +113,13 @@ def parse_argument(c: clang.cindex.Cursor, t: clang.cindex.Type | None = None):
     if t is None:
         t = c.type
     d_type = {"type": parse_type(t)}
-    if not c.spelling:
+
+    # We don't use `s.is_anonymous`, as for `void (*a5)(double a, int);`
+    # The double `double a` will be named as anonymous
+
+    # We don't use `not s.spelling` due to the "feature" of libclang,
+    # where in (*a6)(a6_t) the spelling of `a6_t` will be a6_t
+    if not c.get_usr():
         return d_type
     return {"name": c.spelling} | d_type
 
@@ -130,11 +136,14 @@ def parse_function_decl(c: clang.cindex.Cursor):
 @type_enforced.Enforcer
 def parse_function_proto(t: clang.cindex.Type, c: clang.cindex.Cursor):
     d = {"type": parse_type(t.get_result())}
-
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
-    childrens = list(c.get_children())
-    assert len(childrens) == len(t.argument_types())
-    if params := [parse_argument(*a) for a in zip(childrens, t.argument_types())]:
+
+    # In the case where on params is of type ELABORATED, `c` will have "too much" children
+    # (eg `CursorKind.TYPE_REF` and the `CursorKind.PARM_DECL`
+
+    if params := [
+        parse_argument(*a) for a in zip(c.get_children(), t.argument_types())
+    ]:
         d["params"] = params
     return d
 

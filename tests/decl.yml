@@ -1,4 +1,9 @@
 ---
+typedefs:
+- name: a6_t
+  type:
+    kind: int
+    name: int
 declarations:
 - name: a0
   type:
@@ -61,12 +66,31 @@ declarations:
           name: int
 - name: a6
   type:
+    kind: pointer
+    type:
+      kind: function
+      type:
+        kind: custom_type
+        name: a6_t
+      params:
+      - type:
+          kind: custom_type
+          name: a6_t
+- name: a7
+  type:
     kind: array
     type:
       kind: int
       name: int
     length: 1
-- name: a7
+- name: a8
+  type:
+    kind: array
+    type:
+      kind: int
+      name: int
+    length: 1
+- name: a9
   type:
     kind: array
     type:
