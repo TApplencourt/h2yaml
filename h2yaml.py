@@ -43,35 +43,24 @@ THAPI_types = {
 
 
 @type_enforced.Enforcer
-def parse_type_qualifed(t: clang.cindex.Type):
-    d = {}
-    if t.is_const_qualified():
-        d["const"] = True
-    if t.is_volatile_qualified():
-        d["volatile"] = True
-    if t.is_restrict_qualified():
-        d["restrict"] = True
-
-    match k := t.kind:
-        case _ if kind := THAPI_types.get(k):
-            names = [s for s in t.spelling.split() if s not in d]
-            assert len(names) == 1
-            return {"name": names.pop()} | d
-        case clang.cindex.TypeKind.POINTER:
-            return d
-        case _:  # pragma: no cover
-            raise NotImplementedError(f"parse_type_qualifed: {k}")
-
-
-@type_enforced.Enforcer
 def parse_type(t: clang.cindex.Type, c: clang.cindex.Cursor | None = None):
+    d_qualified = {}
+    if t.is_const_qualified():
+        d_qualified["const"] = True
+    if t.is_volatile_qualified():
+        d_qualified["volatile"] = True
+    if t.is_restrict_qualified():
+        d_qualified["restrict"] = True
+
     match k := t.kind:
         case _ if kind := THAPI_types.get(k):
-            return {"kind": kind} | parse_type_qualifed(t)
+            names = [s for s in t.spelling.split() if s not in d_qualified]
+            assert len(names) == 1
+            return {"kind": kind, "name": names.pop()} | d_qualified
         case clang.cindex.TypeKind.POINTER:
             return (
                 {"kind": "pointer"}
-                | parse_type_qualifed(t)
+                | d_qualified
                 | {"type": parse_type(t.get_pointee(), c)}
             )
         case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.RECORD:
