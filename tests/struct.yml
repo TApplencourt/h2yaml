@@ -69,6 +69,13 @@ structs:
         type:
           kind: struct
           name: B6
+- name: A7
+  members:
+  - name: b
+    type:
+      kind: int
+      name: int
+    num_bits: 3
 typedefs:
 - name: a5
   type:

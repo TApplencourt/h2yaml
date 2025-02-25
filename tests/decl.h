@@ -1,5 +1,5 @@
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 int a0;
 uint64_t a1;
@@ -23,4 +23,3 @@ int a10[25];
 volatile const int a11;
 
 const int *const restrict a12;
-

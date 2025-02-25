@@ -191,11 +191,13 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
     def parse_field(c):
         match k := c.kind:
             case clang.cindex.CursorKind.FIELD_DECL:
+                d = {"type": parse_type(c.type)}
+                if c.is_bitfield():
+                    d |= {"num_bits": c.get_bitfield_width()}
                 # If case of record, the field have no name
-                d_type = {"type": parse_type(c.type)}
                 if c.is_anonymous():
-                    return d_type
-                return {"name": c.spelling} | d_type
+                    return d
+                return {"name": c.spelling} | d
             case _:  # pragma: no cover
                 raise NotImplementedError(f"parse_field: {k}")
 

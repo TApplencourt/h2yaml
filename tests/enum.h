@@ -13,5 +13,5 @@ typedef enum E { E0 } E_t;
 
 typedef enum F { F0 = 10 } F;
 typedef struct G {
-	F f;
+  F f;
 } G;
