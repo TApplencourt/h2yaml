@@ -195,10 +195,9 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
                 if c.is_bitfield():
                     d |= {"num_bits": c.get_bitfield_width()}
                 # Some case can be `anonymous`:
-                # - If not using anonymous, unamed struct will have `anonymous` as spelling
-                # - But bitfield can be anonymous, but `c.is_anonymous()` will not trigger,
-                #  but spelling will be empty
-                if c.is_anonymous() or not (c.spelling):
+                # - unnamed struct will have `anonymous` in `spelling`, so we use `is_anonymous()`
+                # - bitfield can be anonymous, `is_anonymous()` will be `false` but spelling will be empty
+                if c.is_anonymous() or not c.spelling:
                     return d
                 return {"name": c.spelling} | d
             case _:  # pragma: no cover
