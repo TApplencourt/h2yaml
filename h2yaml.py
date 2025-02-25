@@ -4,6 +4,7 @@ import clang.cindex
 import yaml
 import type_enforced
 import os
+import subprocess
 
 
 @property
@@ -249,11 +250,38 @@ def check_diagnostic(t):
         print(f"clang diagnostic: {diagnostic}", file=sys.stderr)
         # diagnostic message can contain "error" or "warning"
         error += "error" in str(diagnostic)
-    if error: # pragma: no cover // No negatif test yet
+    if error:  # pragma: no cover // No negatif test yet
         sys.exit(1)
 
 
-def h2yaml(path, args=None):
+class SystemIncludes:
+    # Our libclang version may differ from the "normal" compiler used by the system.
+    # This means we may lack the `isystem` headers that the user expects.
+    # We use the `$CC` environment variable to detect these headers and add them to our include path.
+    @staticmethod
+    @cache
+    def get_paths():
+        if not (cc := os.getenv("CC")):
+            return []
+
+        text = subprocess.check_output(
+            f"{cc} -E -Wp,-v -xc /dev/null",
+            shell=True,
+            text=True,
+            stderr=subprocess.STDOUT,
+        )
+        start_string = "#include <...> search starts here:"
+        start_index = text.find(start_string) + len(start_string)
+        end_index = text.find("End of search list.", start_index)
+        return text[start_index:end_index].split()
+
+    @classmethod
+    @property
+    def paths(cls):
+        return cls.get_paths()
+
+
+def h2yaml(path, args=[]):
     global DECLARATIONS
     DECLARATIONS = {
         "structs": [],
@@ -263,7 +291,9 @@ def h2yaml(path, args=None):
         "functions": [],
         "enums": [],
     }
+    args += [f"-I{p}" for p in SystemIncludes.paths]
     t = clang.cindex.Index.create().parse(path, args=args)
+
     check_diagnostic(t)
 
     parse_translation_unit(t.cursor)
