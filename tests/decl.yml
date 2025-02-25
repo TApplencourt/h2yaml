@@ -98,3 +98,18 @@ declarations:
       kind: int
       name: int
     length: 25
+- name: a11
+  type:
+    kind: int
+    name: int
+    const: true
+    volatile: true
+- name: a12
+  type:
+    kind: pointer
+    const: true
+    restrict: true
+    type:
+      kind: int
+      name: int
+      const: true

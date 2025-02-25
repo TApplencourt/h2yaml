@@ -10,3 +10,5 @@ struct a f3(struct a x);
 
 typedef int (*a_t)(int);
 int f4(int a[]);
+
+int f5(const int *a);

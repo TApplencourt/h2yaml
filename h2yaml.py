@@ -43,12 +43,37 @@ THAPI_types = {
 
 
 @type_enforced.Enforcer
+def parse_type_qualifed(t: clang.cindex.Type):
+    d = {}
+    if t.is_const_qualified():
+        d["const"] = True
+    if t.is_volatile_qualified():
+        d["volatile"] = True
+    if t.is_restrict_qualified():
+        d["restrict"] = True
+
+    match k := t.kind:
+        case _ if kind := THAPI_types.get(k):
+            names = [s for s in t.spelling.split() if s not in d]
+            assert len(names) == 1
+            return {"name": names.pop()} | d
+        case clang.cindex.TypeKind.POINTER:
+            return d
+        case _:  # pragma: no cover
+            raise NotImplementedError(f"parse_type_qualifed: {k}")
+
+
+@type_enforced.Enforcer
 def parse_type(t: clang.cindex.Type, c: clang.cindex.Cursor | None = None):
     match k := t.kind:
         case _ if kind := THAPI_types.get(k):
-            return {"kind": kind, "name": t.spelling}
+            return {"kind": kind} | parse_type_qualifed(t)
         case clang.cindex.TypeKind.POINTER:
-            return {"kind": "pointer", "type": parse_type(t.get_pointee(), c)}
+            return (
+                {"kind": "pointer"}
+                | parse_type_qualifed(t)
+                | {"type": parse_type(t.get_pointee(), c)}
+            )
         case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.RECORD:
             return parse_decl(t.get_declaration())
         case clang.cindex.TypeKind.CONSTANTARRAY:
@@ -261,7 +286,7 @@ class SystemIncludes:
     @staticmethod
     @cache
     def get_paths():
-        if not (cc := os.getenv("CC")):
+        if not (cc := os.getenv("CC")):  # pragma: no cover
             return []
 
         text = subprocess.check_output(

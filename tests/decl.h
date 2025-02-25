@@ -19,3 +19,8 @@ int a9[];
 
 int a10[];
 int a10[25];
+
+volatile const int a11;
+
+const int *const restrict a12;
+

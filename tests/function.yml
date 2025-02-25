@@ -61,3 +61,15 @@ functions:
       type:
         kind: int
         name: int
+- name: f5
+  type:
+    kind: int
+    name: int
+  params:
+  - name: a
+    type:
+      kind: pointer
+      type:
+        kind: int
+        name: int
+        const: true
