@@ -31,7 +31,9 @@ struct A6 {
     } b;
   } a6;
 };
-
 struct A7 {
-  int b : 3;
+  unsigned b1 : 5;
+  unsigned : 0;
+  unsigned b2 : 6;
+  unsigned b3 : 15;
 };

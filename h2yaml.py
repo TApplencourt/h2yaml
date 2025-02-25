@@ -55,8 +55,8 @@ def parse_type(t: clang.cindex.Type, c: clang.cindex.Cursor | None = None):
     match k := t.kind:
         case _ if kind := THAPI_types.get(k):
             names = [s for s in t.spelling.split() if s not in d_qualified]
-            assert len(names) == 1
-            return {"kind": kind, "name": names.pop()} | d_qualified
+            # assert len(names) == 1
+            return {"kind": kind, "name": " ".join(names)} | d_qualified
         case clang.cindex.TypeKind.POINTER:
             return (
                 {"kind": "pointer"}
@@ -194,8 +194,11 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
                 d = {"type": parse_type(c.type)}
                 if c.is_bitfield():
                     d |= {"num_bits": c.get_bitfield_width()}
-                # If case of record, the field have no name
-                if c.is_anonymous():
+                # Some case can be `anonymous`:
+                # - If not using anonymous, unamed struct will have `anonymous` as spelling
+                # - But bitfield can be anonymous, but `c.is_anonymous()` will not trigger,
+                #  but spelling will be empty
+                if c.is_anonymous() or not (c.spelling):
                     return d
                 return {"name": c.spelling} | d
             case _:  # pragma: no cover

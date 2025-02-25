@@ -71,11 +71,25 @@ structs:
           name: B6
 - name: A7
   members:
-  - name: b
+  - name: b1
     type:
       kind: int
-      name: int
-    num_bits: 3
+      name: unsigned int
+    num_bits: 5
+  - type:
+      kind: int
+      name: unsigned int
+    num_bits: 0
+  - name: b2
+    type:
+      kind: int
+      name: unsigned int
+    num_bits: 6
+  - name: b3
+    type:
+      kind: int
+      name: unsigned int
+    num_bits: 15
 typedefs:
 - name: a5
   type:
