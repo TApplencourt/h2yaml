@@ -1,10 +1,23 @@
 import sys
-from functools import cache
+from functools import cache, wraps
 import clang.cindex
 import yaml
 import type_enforced
 import os
 import subprocess
+from _collections_abc import list_iterator
+
+
+def cache_first_arg(func):
+    cache = func.cache = {}
+
+    @wraps(func)
+    def memoizer(arg1, *args):
+        if arg1 not in cache:
+            cache[arg1] = func(arg1, *args)
+        return cache[arg1]
+
+    return memoizer
 
 
 @property
@@ -43,7 +56,7 @@ THAPI_types = {
 
 
 @type_enforced.Enforcer
-def parse_type(t: clang.cindex.Type, c: clang.cindex.Cursor | None = None):
+def parse_type(t: clang.cindex.Type, cursors: list_iterator | None = None):
     d_qualified = {}
     if t.is_const_qualified():
         d_qualified["const"] = True
@@ -51,19 +64,20 @@ def parse_type(t: clang.cindex.Type, c: clang.cindex.Cursor | None = None):
         d_qualified["volatile"] = True
     if t.is_restrict_qualified():
         d_qualified["restrict"] = True
-
     match k := t.kind:
         case _ if kind := THAPI_types.get(k):
             names = [s for s in t.spelling.split() if s not in d_qualified]
-            # assert len(names) == 1
             return {"kind": kind, "name": " ".join(names)} | d_qualified
         case clang.cindex.TypeKind.POINTER:
             return (
                 {"kind": "pointer"}
                 | d_qualified
-                | {"type": parse_type(t.get_pointee(), c)}
+                | {"type": parse_type(t.get_pointee(), cursors)}
             )
-        case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.RECORD:
+        case clang.cindex.TypeKind.ELABORATED:
+            next(cursors)
+            return parse_decl(t.get_declaration(), t.get_declaration().get_children())
+        case clang.cindex.TypeKind.RECORD:
             return parse_decl(t.get_declaration())
         case clang.cindex.TypeKind.CONSTANTARRAY:
             return {
@@ -74,13 +88,13 @@ def parse_type(t: clang.cindex.Type, c: clang.cindex.Cursor | None = None):
         case clang.cindex.TypeKind.INCOMPLETEARRAY:
             return {"kind": "array", "type": parse_type(t.element_type)}
         case clang.cindex.TypeKind.FUNCTIONPROTO:
-            return {"kind": "function"} | parse_function_proto(t, c)
+            return {"kind": "function"} | parse_function_proto(t, cursors)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_type: {k}")
 
 
 @type_enforced.Enforcer
-def parse_decl(c: clang.cindex.Cursor):
+def parse_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
     match k := c.kind:
         case clang.cindex.CursorKind.STRUCT_DECL:
             return {"kind": "struct"} | parse_struct_decl(c)
@@ -89,9 +103,9 @@ def parse_decl(c: clang.cindex.Cursor):
         case clang.cindex.CursorKind.ENUM_DECL:
             return {"kind": "enum"} | parse_enum_decl(c)
         case clang.cindex.CursorKind.TYPEDEF_DECL:
-            return {"kind": "custom_type"} | parse_typedef_decl(c)
+            return {"kind": "custom_type"} | parse_typedef_decl(c, cursors)
         case clang.cindex.CursorKind.FUNCTION_DECL:
-            return parse_function_decl(c)
+            return parse_function_decl(c, cursors)
         case clang.cindex.CursorKind.VAR_DECL:
             return parse_var_decl(c)
         case _:  # pragma: no cover
@@ -102,14 +116,14 @@ def parse_decl(c: clang.cindex.Cursor):
 #    |    ._   _   _|  _ _|_   | \  _   _ |
 #    | \/ |_) (/_ (_| (/_ |    |_/ (/_ (_ |
 #      /  |
-@cache
+@cache_first_arg
 @type_enforced.Enforcer
-def parse_typedef_decl(c: clang.cindex.Cursor):
+def parse_typedef_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
     name = {"name": c.spelling}
     # Stop recursing, and don't append if
     # the typedef is defined by system header
     if not (c.location.is_in_system_header2):
-        type_ = parse_type(c.underlying_typedef_type, c)
+        type_ = parse_type(c.underlying_typedef_type, cursors)
         DECLARATIONS["typedefs"].append(name | {"type": type_})
     return name
 
@@ -129,7 +143,7 @@ def parse_var_decl(c: clang.cindex.Cursor):
 
     d = {
         "name": c.spelling,
-        "type": parse_type(c.type, c),
+        "type": parse_type(c.type, c.get_children()),
     }
 
     match t := c.storage_class:
@@ -151,11 +165,9 @@ def parse_var_decl(c: clang.cindex.Cursor):
 def parse_argument(c: clang.cindex.Cursor, t: clang.cindex.Type | None = None):
     if t is None:
         t = c.type
-    d_type = {"type": parse_type(t)}
-
+    d_type = {"type": parse_type(t, c.get_children())}
     # We don't use `s.is_anonymous`, as for `void (*a5)(double a, int);`
     # The double `double a` will be named as anonymous
-
     # We don't use `not s.spelling` due to the "feature" of libclang,
     # where in (*a6)(a6_t) the spelling of `a6_t` will be a6_t
     if not c.get_usr():
@@ -164,8 +176,8 @@ def parse_argument(c: clang.cindex.Cursor, t: clang.cindex.Type | None = None):
 
 
 @type_enforced.Enforcer
-def parse_function_decl(c: clang.cindex.Cursor):
-    d = {"name": c.spelling, "type": parse_type(c.type.get_result())}
+def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
+    d = {"name": c.spelling, "type": parse_type(c.type.get_result(), cursors)}
     if params := [parse_argument(a) for a in c.get_arguments()]:
         d["params"] = params
 
@@ -173,16 +185,16 @@ def parse_function_decl(c: clang.cindex.Cursor):
 
 
 @type_enforced.Enforcer
-def parse_function_proto(t: clang.cindex.Type, c: clang.cindex.Cursor):
-    d = {"type": parse_type(t.get_result())}
+def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator | None = None):
+    d = {"type": parse_type(t.get_result(), cursors)}
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
 
-    # In the case where on params is of type ELABORATED, `c` will have "too much" children
+    # In the case where one params is of type ELABORATED, `c` will have "too much" children
     # (eg `CursorKind.TYPE_REF` and the `CursorKind.PARM_DECL`
+    arg_types = t.argument_types()
+    arg_cursors = [next(cursors) for _ in arg_types]
 
-    if params := [
-        parse_argument(*a) for a in zip(c.get_children(), t.argument_types())
-    ]:
+    if params := [parse_argument(*a) for a in zip(arg_cursors, arg_types)]:
         d["params"] = params
     return d
 
@@ -200,7 +212,7 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
     def parse_field(c):
         match k := c.kind:
             case clang.cindex.CursorKind.FIELD_DECL:
-                d = {"type": parse_type(c.type)}
+                d = {"type": parse_type(c.type, c.get_children())}
                 if c.is_bitfield():
                     d |= {"num_bits": c.get_bitfield_width()}
                 # Some case can be `anonymous`:
@@ -268,7 +280,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 def parse_translation_unit(t):
     user_children = [c for c in t.get_children() if not c.location.is_in_system_header2]
     for c in user_children:
-        parse_decl(c)
+        parse_decl(c, c.get_children())
 
 
 #
@@ -323,11 +335,11 @@ def h2yaml(path, args=[]):
         "enums": [],
     }
     args += [f"-I{p}" for p in SystemIncludes.paths]
-    t = clang.cindex.Index.create().parse(path, args=args)
 
-    check_diagnostic(t)
+    translation_unit = clang.cindex.Index.create().parse(path, args=args)
+    check_diagnostic(translation_unit)
+    parse_translation_unit(translation_unit.cursor)
 
-    parse_translation_unit(t.cursor)
     d = {k: v for k, v in DECLARATIONS.items() if v}
     return yaml.dump(
         d,

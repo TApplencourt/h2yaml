@@ -19,6 +19,23 @@ typedefs:
       - type:
           kind: int
           name: int
+- name: b_t
+  type:
+    kind: int
+    name: int
+- name: c_t
+  type:
+    kind: pointer
+    type:
+      kind: function
+      type:
+        kind: custom_type
+        name: b_t
+      params:
+      - name: x
+        type:
+          kind: int
+          name: int
 functions:
 - name: f0
   type:

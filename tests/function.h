@@ -10,5 +10,7 @@ struct a f3(struct a x);
 
 typedef int (*a_t)(int);
 int f4(int a[]);
-
 int f5(const int *a);
+
+typedef int b_t;
+typedef b_t (*c_t)(int x);
