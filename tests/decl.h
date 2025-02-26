@@ -23,3 +23,5 @@ int a10[25];
 volatile const int a11;
 
 const int *const restrict a12;
+
+extern const char *a13;

@@ -113,3 +113,11 @@ declarations:
       kind: int
       name: int
       const: true
+- name: a13
+  type:
+    kind: pointer
+    type:
+      kind: char
+      name: char
+      const: true
+  storage: extern

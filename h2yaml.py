@@ -126,12 +126,21 @@ def parse_var_decl(c: clang.cindex.Cursor):
     # As a result, it will be parsed as a `CONSTANTARRAY`
     if c.type.kind == clang.cindex.TypeKind.INCOMPLETEARRAY:
         return
-    DECLARATIONS["declarations"].append(
-        {
-            "name": c.spelling,
-            "type": parse_type(c.type, c),
-        }
-    )
+
+    d = {
+        "name": c.spelling,
+        "type": parse_type(c.type, c),
+    }
+
+    match t := c.storage_class:
+        case clang.cindex.StorageClass.EXTERN:
+            d["storage"] = "extern"
+        case clang.cindex.StorageClass.NONE:
+            pass
+        case _:  # pragma: no cover
+            raise NotImplementedError(f"parse_var_decl_storage_class: {t}")
+
+    DECLARATIONS["declarations"].append(d)
 
 
 #    _                            _
@@ -204,7 +213,6 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
                 raise NotImplementedError(f"parse_field: {k}")
 
     # typedef struct A8 a8 is a valid c syntax;
-
     d_members = {}
     if members := [parse_field(f) for f in c.type.get_fields()]:
         d_members["members"] = members
