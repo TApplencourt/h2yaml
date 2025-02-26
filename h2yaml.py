@@ -203,8 +203,13 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
             case _:  # pragma: no cover
                 raise NotImplementedError(f"parse_field: {k}")
 
+    # typedef struct A8 a8 is a valid c syntax;
+
+    d_members = {}
+    if members := [parse_field(f) for f in c.type.get_fields()]:
+        d_members["members"] = members
+
     # Hoisting
-    d_members = {"members": [parse_field(f) for f in c.type.get_fields()]}
     if c.is_anonymous():
         return d_members
     d_name = {"name": c.spelling}

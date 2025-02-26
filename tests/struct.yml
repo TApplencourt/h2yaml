@@ -90,11 +90,16 @@ structs:
       kind: int
       name: unsigned int
     num_bits: 15
+- name: A8
 typedefs:
 - name: a5
   type:
     kind: struct
     name: A5
+- name: a8
+  type:
+    kind: struct
+    name: A8
 declarations:
 - name: a
   type:
