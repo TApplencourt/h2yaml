@@ -67,6 +67,7 @@ functions:
     type:
       kind: struct
       name: a
+      const: true
 - name: f4
   type:
     kind: int

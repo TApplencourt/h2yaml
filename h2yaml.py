@@ -76,7 +76,8 @@ def parse_type(t: clang.cindex.Type, cursors: list_iterator | None = None):
             )
         case clang.cindex.TypeKind.ELABORATED:
             next(cursors)
-            return parse_decl(t.get_declaration(), t.get_declaration().get_children())
+            decl = t.get_declaration()
+            return parse_decl(decl, decl.get_children()) | d_qualified
         case clang.cindex.TypeKind.RECORD:
             return parse_decl(t.get_declaration())
         case clang.cindex.TypeKind.CONSTANTARRAY:
