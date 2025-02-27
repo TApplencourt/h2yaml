@@ -5,7 +5,7 @@ struct S0 {
 };
 
 union S1 {
-  enum C { C0 = 1, C1 = 2 } * bar;
+  enum C { C0 = 1, C1 = 2, C2 = 0x3, C3 = C1 + C2 } bar;
 };
 
 typedef enum { D0 } D_t;

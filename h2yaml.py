@@ -261,7 +261,13 @@ def parse_union_decl(c: clang.cindex.Cursor):
 def parse_enum_decl(c: clang.cindex.Cursor):
     # Enum cannot be nested
     def parse_enum_member(c):
-        return {"name": c.spelling, "val": c.enum_value}
+        d = {"name": c.spelling}
+        tokens = [t.spelling for t in c.get_tokens()]
+        if "=" in tokens:
+            d["val"] = "".join(tokens[2:])
+        else:
+            assert len(tokens) == 1 and c.enum_value == 0
+        return d
 
     # Hoisting
     d_members = {"members": [parse_enum_member(f) for f in c.get_children()]}
