@@ -91,3 +91,12 @@ functions:
         kind: int
         name: int
         const: true
+- name: f6
+  type:
+    kind: void
+    name: void
+  params:
+  - type:
+      kind: int
+      name: int
+  var_args: true

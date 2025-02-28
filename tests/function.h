@@ -1,6 +1,6 @@
 void f0(int);
 void f1(int b);
-void f2();
+void f2(void);
 
 struct a {
   int i;
@@ -13,3 +13,5 @@ int f5(const int *a);
 
 typedef int b_t;
 typedef b_t (*c_t)(int x);
+
+void f6(int, ...);

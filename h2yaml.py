@@ -181,6 +181,8 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = 
     d = {"name": c.spelling, "type": parse_type(c.type.get_result(), cursors)}
     if params := [parse_argument(a) for a in c.get_arguments()]:
         d["params"] = params
+    if c.type.is_function_variadic():
+        d["var_args"] = True
 
     DECLARATIONS["functions"].append(d)
 
