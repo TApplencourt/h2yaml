@@ -93,6 +93,12 @@ structs:
       name: unsigned int
     num_bits: 15
 - name: A8
+- name: A10
+  members:
+  - name: a
+    type:
+      kind: int
+      name: int
 typedefs:
 - name: a5
   type:
@@ -110,6 +116,16 @@ typedefs:
       type:
         kind: int
         name: int
+- name: A10_0_t
+  type:
+    kind: pointer
+    type:
+      kind: struct
+      name: A10
+- name: A10_1_t
+  type:
+    kind: struct
+    name: A10
 declarations:
 - name: a
   type:
