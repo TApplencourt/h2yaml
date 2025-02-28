@@ -2,7 +2,7 @@ enum A { A0 };
 enum { A1 };
 
 struct S0 {
-  enum B { B0 = 1 } * bar;
+  enum B { B0 = 1, B1, B2 } * bar;
 };
 
 union S1 {

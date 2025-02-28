@@ -47,6 +47,8 @@ enums:
   members:
   - name: B0
     val: '1'
+  - name: B1
+  - name: B2
 - name: C
   members:
   - name: C0

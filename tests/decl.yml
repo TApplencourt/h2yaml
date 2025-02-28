@@ -121,3 +121,13 @@ declarations:
       name: char
       const: true
   storage: extern
+- name: a14
+  type:
+    kind: array
+    type:
+      kind: array
+      type:
+        kind: int
+        name: int
+      length: 3
+    length: 1

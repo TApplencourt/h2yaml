@@ -17,3 +17,5 @@ typedef b_t (*c_t)(int x);
 void f6(int, ...);
 
 typedef void(d_t)(int, ...);
+
+void f7();

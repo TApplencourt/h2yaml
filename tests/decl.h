@@ -25,3 +25,5 @@ volatile const int a11;
 const int *const restrict a12;
 
 extern const char *a13;
+
+int a14[][3];

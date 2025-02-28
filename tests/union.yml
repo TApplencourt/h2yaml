@@ -10,6 +10,16 @@ unions:
     type:
       kind: float
       name: float
+- name: B_t
+  members:
+  - name: B_s
+    type:
+      kind: struct
+      members:
+      - name: B0
+        type:
+          kind: int
+          name: int
 functions:
 - name: foo
   type:

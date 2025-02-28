@@ -111,3 +111,7 @@ functions:
       kind: int
       name: int
   var_args: true
+- name: f7
+  type:
+    kind: void
+    name: void

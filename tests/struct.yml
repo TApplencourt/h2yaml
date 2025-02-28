@@ -14,7 +14,8 @@ structs:
       name: int
 - name: A2
   members:
-  - type:
+  - name: a
+    type:
       kind: struct
       members:
       - name: x
@@ -62,7 +63,8 @@ structs:
       name: int
 - name: A6
   members:
-  - type:
+  - name: a6
+    type:
       kind: union
       members:
       - name: b
