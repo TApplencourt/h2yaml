@@ -83,7 +83,7 @@ def parse_type(t: clang.cindex.Type, cursors: list_iterator | None = None):
         case clang.cindex.TypeKind.CONSTANTARRAY:
             return {
                 "kind": "array",
-                "type": parse_type(t.element_type),
+                "type": parse_type(t.element_type, cursors),
                 "length": t.element_count,
             }
         case clang.cindex.TypeKind.INCOMPLETEARRAY:
@@ -273,7 +273,8 @@ def parse_enum_decl(c: clang.cindex.Cursor):
     d_members = {"members": [parse_enum_member(f) for f in c.get_children()]}
     # Check of anonymous `enum`
     # Black Magic: https://stackoverflow.com/a/35184821
-    if "@EA@" in c.get_usr():
+    # Unclear what the case of `a` mean
+    if any(anonymous in c.get_usr() for anonymous in ["@EA@", "@Ea@"]):
         return d_members
     d_name = {"name": c.spelling}
     DECLARATIONS["enums"].append(d_name | d_members)
