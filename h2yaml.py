@@ -29,7 +29,28 @@ def is_in_system_header2(self):
     return any(basename.startswith(s) for s in ["std", "__std"])
 
 
+def is_anonymous2(self):
+    match self.kind:
+        case clang.cindex.CursorKind.PARM_DECL:
+            # `is_anonymous` for `double a` in `void (*a5)(double a, int);` will return True.
+            # We don't use `not spelling` anymore due to the "feature" of libclang,
+            #   where in (*a6)(a6_t) the spelling of `a6_t` will be `a6_t` and not `None`
+            return not (self.get_usr())
+        case clang.cindex.CursorKind.FIELD_DECL:
+            # - unnamed struct will have "anonymous ..."  in `spelling`, but `is_anonymous` will be true
+            # - named struct in union will be considered anonymous
+            # - unnamed bitfield will have `is_anonymous` be `false`, but spelling will be empty
+            return not self.spelling or "(anonymous at" in self.spelling
+        case clang.cindex.CursorKind.ENUM_DECL:
+            # Black Magic: https://stackoverflow.com/a/35184821
+            # Unclear what the case of `a` represent
+            return any(anonymous in self.get_usr() for anonymous in ["@EA@", "@Ea@"])
+        case _:
+            return self.is_anonymous()
+
+
 clang.cindex.SourceLocation.is_in_system_header2 = is_in_system_header2
+clang.cindex.Cursor.is_anonymous2 = is_anonymous2
 
 #   ___
 #    |    ._   _
@@ -168,11 +189,7 @@ def parse_argument(c: clang.cindex.Cursor, t: clang.cindex.Type | None = None):
     if t is None:
         t = c.type
     d_type = {"type": parse_type(t, c.get_children())}
-    # We don't use `s.is_anonymous`, as for `void (*a5)(double a, int);`
-    # The double `double a` will be named as anonymous
-    # We don't use `not s.spelling` due to the "feature" of libclang,
-    # where in (*a6)(a6_t) the spelling of `a6_t` will be a6_t
-    if not c.get_usr():
+    if c.is_anonymous2():
         return d_type
     return {"name": c.spelling} | d_type
 
@@ -229,11 +246,7 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
                 d = {"type": parse_type(c.type, c.get_children())}
                 if c.is_bitfield():
                     d |= {"num_bits": c.get_bitfield_width()}
-                # We don't use anonymous`:
-                # - unnamed struct will have "anonymous ..."  in `spelling`, but `is_anonymous()` will be true
-                # - unnamed bitfield will have `is_anonymous()`  be `false`, but spelling will be empty
-                # - struct in union will be considered anonymous
-                if not c.spelling or "(anonymous at" in c.spelling:
+                if c.is_anonymous2():
                     return d
                 return {"name": c.spelling} | d
             case _:  # pragma: no cover
@@ -245,7 +258,7 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
         d_members["members"] = members
 
     # Hoisting
-    if c.is_anonymous():
+    if c.is_anonymous2():
         return d_members
     d_name = {"name": c.spelling}
     DECLARATIONS[name_decl].append(d_name | d_members)
@@ -285,10 +298,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 
     # Hoisting
     d_members = {"members": [parse_enum_member(f) for f in c.get_children()]}
-    # Check of anonymous `enum`
-    # Black Magic: https://stackoverflow.com/a/35184821
-    # Unclear what the case of `a` mean
-    if any(anonymous in c.get_usr() for anonymous in ["@EA@", "@Ea@"]):
+    if c.is_anonymous2():
         return d_members
     d_name = {"name": c.spelling}
     DECLARATIONS["enums"].append(d_name | d_members)
