@@ -92,7 +92,6 @@ structs:
       kind: int
       name: unsigned int
     num_bits: 15
-- name: A8
 - name: A10
   members:
   - name: a
