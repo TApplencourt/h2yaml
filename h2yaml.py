@@ -217,8 +217,6 @@ def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator | None = N
     d = {"type": parse_type(t.get_result(), cursors)}
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
 
-    # In the case where one params is of type ELABORATED, `c` will have "too much" children
-    # (eg `CursorKind.TYPE_REF` and the `CursorKind.PARM_DECL`
     arg_types = t.argument_types()
     arg_cursors = [next(cursors) for _ in arg_types]
 
@@ -245,7 +243,7 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
             case clang.cindex.CursorKind.FIELD_DECL:
                 d = {"type": parse_type(c.type, c.get_children())}
                 if c.is_bitfield():
-                    d |= {"num_bits": c.get_bitfield_width()}
+                    d["num_bits"] = c.get_bitfield_width()
                 if c.is_anonymous2():
                     return d
                 return {"name": c.spelling} | d
@@ -256,10 +254,10 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
     d_members = {}
     if members := [parse_field(f) for f in c.type.get_fields()]:
         d_members["members"] = members
-
     # Hoisting
     if c.is_anonymous2():
         return d_members
+
     d_name = {"name": c.spelling}
     DECLARATIONS[name_decl].append(d_name | d_members)
     return d_name
