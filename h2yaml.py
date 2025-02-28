@@ -24,12 +24,13 @@ def cache_first_arg(func):
 def is_in_system_header2(self):
     if self.is_in_system_header:
         return True
-
     basename = os.path.basename(self.file.name)
     return any(basename.startswith(s) for s in ["std", "__std"])
 
 
 def is_anonymous2(self):
+    is_usr_contain = lambda targets: any(t in self.get_usr() for t in targets)
+
     match self.kind:
         case clang.cindex.CursorKind.PARM_DECL:
             # `is_anonymous` for `double a` in `void (*a5)(double a, int);` will return True.
@@ -44,7 +45,10 @@ def is_anonymous2(self):
         case clang.cindex.CursorKind.ENUM_DECL:
             # Black Magic: https://stackoverflow.com/a/35184821
             # Unclear what the case of `a` represent
-            return any(anonymous in self.get_usr() for anonymous in ["@EA@", "@Ea@"])
+            return is_usr_contain(["@EA@", "@Ea@"])
+        case clang.cindex.CursorKind.STRUCT_DECL:
+            # Fix typedef struct {int a } A9_t, where the `struct` is not anonynous
+            return self.is_anonymous() or is_usr_contain(["@SA@", "@Sa@"])
         case _:
             return self.is_anonymous()
 
@@ -239,16 +243,13 @@ def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator | None = N
 @type_enforced.Enforcer
 def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
     def parse_field(c):
-        match k := c.kind:
-            case clang.cindex.CursorKind.FIELD_DECL:
-                d = {"type": parse_type(c.type, c.get_children())}
-                if c.is_bitfield():
-                    d["num_bits"] = c.get_bitfield_width()
-                if c.is_anonymous2():
-                    return d
-                return {"name": c.spelling} | d
-            case _:  # pragma: no cover
-                raise NotImplementedError(f"parse_field: {k}")
+        assert c.kind == clang.cindex.CursorKind.FIELD_DECL
+        d = {"type": parse_type(c.type, c.get_children())}
+        if c.is_bitfield():
+            d["num_bits"] = c.get_bitfield_width()
+        if c.is_anonymous2():
+            return d
+        return {"name": c.spelling} | d
 
     # typedef struct A8 a8 is a valid c syntax;
     d_members = {}

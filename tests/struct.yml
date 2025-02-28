@@ -102,6 +102,14 @@ typedefs:
   type:
     kind: struct
     name: A8
+- name: A9_t
+  type:
+    kind: struct
+    members:
+    - name: a
+      type:
+        kind: int
+        name: int
 declarations:
 - name: a
   type:
