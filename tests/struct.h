@@ -37,6 +37,7 @@ struct A7 {
   unsigned b2 : 6;
   unsigned b3 : 15;
 };
+
 typedef struct A8 a8;
 
 typedef struct {

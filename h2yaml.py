@@ -252,14 +252,14 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
         return {"name": c.spelling} | d
 
     # typedef struct A8 a8 is a valid c syntax;
-    d_members = {}
-    if members := [parse_field(f) for f in c.type.get_fields()]:
-        d_members["members"] = members
+    # But we should not append it to `structs` as it's undefined
+    d_name = {"name": c.spelling}
+    if not (members := [parse_field(f) for f in c.type.get_fields()]):
+        return d_name
+    d_members = {"members": members}
     # Hoisting
     if c.is_anonymous2():
         return d_members
-
-    d_name = {"name": c.spelling}
     DECLARATIONS[name_decl].append(d_name | d_members)
     return d_name
 
