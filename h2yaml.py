@@ -52,6 +52,7 @@ THAPI_types = {
     clang.cindex.TypeKind.UCHAR: "char",
     clang.cindex.TypeKind.CHAR_S: "char",
     clang.cindex.TypeKind.SCHAR: "char",
+    clang.cindex.TypeKind.BOOL: "bool",
 }
 
 
@@ -181,7 +182,14 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = 
     d = {"name": c.spelling, "type": parse_type(c.type.get_result(), cursors)}
     if params := [parse_argument(a) for a in c.get_arguments()]:
         d["params"] = params
-    if c.type.is_function_variadic():
+
+    if c.type.kind == clang.cindex.TypeKind.FUNCTIONNOPROTO:
+        l = c.location
+        print(
+            f"clang diagnostic: {l.file}:{l.line}:{l.column} warning: Did you forget `void` for your no-parameters function `{c.spelling}`?",
+            file=sys.stderr,
+        )
+    elif c.type.is_function_variadic():
         d["var_args"] = True
 
     DECLARATIONS["functions"].append(d)
@@ -199,6 +207,7 @@ def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator | None = N
 
     if params := [parse_argument(*a) for a in zip(arg_cursors, arg_types)]:
         d["params"] = params
+
     if t.is_function_variadic():
         d["var_args"] = True
     return d
@@ -270,7 +279,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
         if "=" in tokens:
             d["val"] = "".join(tokens[2:])
         else:
-            assert len(tokens) == 1 and c.enum_value == 0
+            assert len(tokens) == 1
         return d
 
     # Hoisting
