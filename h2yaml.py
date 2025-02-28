@@ -199,6 +199,8 @@ def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator | None = N
 
     if params := [parse_argument(*a) for a in zip(arg_cursors, arg_types)]:
         d["params"] = params
+    if t.is_function_variadic():
+        d["var_args"] = True
     return d
 
 

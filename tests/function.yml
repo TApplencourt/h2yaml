@@ -36,6 +36,17 @@ typedefs:
         type:
           kind: int
           name: int
+- name: d_t
+  type:
+    kind: function
+    type:
+      kind: void
+      name: void
+    params:
+    - type:
+        kind: int
+        name: int
+    var_args: true
 functions:
 - name: f0
   type:
