@@ -70,7 +70,8 @@ def is_in_system_header2(self):
 
 
 def is_anonymous2(self):
-    is_usr_contain = lambda targets: any(t in self.get_usr() for t in targets)
+    def is_in_usr(targets):
+        return any(t in self.get_usr() for t in targets)
 
     match self.kind:
         case clang.cindex.CursorKind.PARM_DECL:
@@ -86,10 +87,10 @@ def is_anonymous2(self):
         case clang.cindex.CursorKind.ENUM_DECL:
             # Black Magic: https://stackoverflow.com/a/35184821
             # Unclear what the case of `a` represent
-            return is_usr_contain(["@EA@", "@Ea@"])
+            return is_in_usr(["@EA@", "@Ea@"])
         case clang.cindex.CursorKind.STRUCT_DECL:
             # Fix typedef struct {int a } A9_t, where the `struct` is not anonynous
-            return self.is_anonymous() or is_usr_contain(["@SA@", "@Sa@"])
+            return self.is_anonymous() or is_in_usr(["@SA@", "@Sa@"])
         case _:
             return self.is_anonymous()
 
@@ -192,13 +193,13 @@ def parse_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
 @cache_first_arg
 @type_enforced.Enforcer
 def parse_typedef_decl(c: clang.cindex.Cursor, cursors: list_iterator):
-    name = {"name": c.spelling}
+    d_name = {"name": c.spelling}
     # Stop recursing, and don't append if
     # the typedef is defined by system header
     if not c.location.is_in_system_header2:
         type_ = parse_type(c.underlying_typedef_type, cursors)
-        DECLARATIONS["typedefs"].append(name | {"type": type_})
-    return name
+        DECLARATIONS["typedefs"].append(d_name | {"type": type_})
+    return d_name
 
 
 #                 _
@@ -274,7 +275,6 @@ def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator):
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
     arg_types = t.argument_types()
     arg_cursors = [next(cursors) for _ in arg_types]
-
     if params := [parse_argument(*a) for a in zip(arg_cursors, arg_types)]:
         d["params"] = params
 
@@ -336,6 +336,7 @@ def parse_union_decl(c: clang.cindex.Cursor):
 def parse_enum_decl(c: clang.cindex.Cursor):
     # Enum cannot be nested
     def parse_enum_member(c):
+        assert c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
         d = {"name": c.spelling}
         if "=" in (tokens := [t.spelling for t in c.get_tokens()]):
             d["val"] = "".join(tokens[2:])
@@ -360,7 +361,7 @@ def parse_translation_unit(t):
     global DECLARATIONS
     DECLARATIONS = {
         k: []
-        for k in ["structs", "unions", "typedefs", "declarations", "functions", "enums"]
+        for k in ("structs", "unions", "typedefs", "declarations", "functions", "enums")
     }
 
     user_children = (c for c in t.get_children() if not c.location.is_in_system_header2)
