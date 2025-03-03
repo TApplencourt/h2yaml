@@ -123,7 +123,7 @@ THAPI_types = {
 
 
 @type_enforced.Enforcer
-def parse_type(t: clang.cindex.Type, cursors: list_iterator | None = None):
+def parse_type(t: clang.cindex.Type, cursors: list_iterator):
     d_qualified = {}
     if t.is_const_qualified():
         d_qualified["const"] = True
@@ -154,7 +154,7 @@ def parse_type(t: clang.cindex.Type, cursors: list_iterator | None = None):
                 "length": t.element_count,
             }
         case clang.cindex.TypeKind.INCOMPLETEARRAY:
-            return {"kind": "array", "type": parse_type(t.element_type)}
+            return {"kind": "array", "type": parse_type(t.element_type, cursors)}
         case clang.cindex.TypeKind.FUNCTIONPROTO:
             return {"kind": "function"} | parse_function_proto(t, cursors)
         case _:  # pragma: no cover
@@ -190,7 +190,7 @@ def parse_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
 #      /  |
 @cache_first_arg
 @type_enforced.Enforcer
-def parse_typedef_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
+def parse_typedef_decl(c: clang.cindex.Cursor, cursors: list_iterator):
     name = {"name": c.spelling}
     # Stop recursing, and don't append if
     # the typedef is defined by system header
@@ -267,7 +267,7 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = 
 
 
 @type_enforced.Enforcer
-def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator | None = None):
+def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator):
     d = {"type": parse_type(t.get_result(), cursors)}
 
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list

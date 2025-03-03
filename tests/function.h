@@ -5,7 +5,7 @@ void f2(void);
 struct a {
   int i;
 };
-struct a f3(const struct a x);
+struct a f3(const struct a x[]);
 
 typedef int (*a_t)(int);
 int f4(int a[]);

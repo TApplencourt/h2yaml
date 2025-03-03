@@ -76,9 +76,11 @@ functions:
   params:
   - name: x
     type:
-      kind: struct
-      name: a
-      const: true
+      kind: array
+      type:
+        kind: struct
+        name: a
+        const: true
 - name: f4
   type:
     kind: int
@@ -115,3 +117,4 @@ functions:
   type:
     kind: void
     name: void
+
