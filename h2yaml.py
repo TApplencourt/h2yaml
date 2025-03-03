@@ -48,7 +48,6 @@ class SystemIncludes:
 
 @type_enforced.Enforcer
 def check_diagnostic(t: clang.cindex.TranslationUnit):
-    print(t)
     error = 0
     for diagnostic in t.diagnostics:
         print(f"clang diagnostic: {diagnostic}", file=sys.stderr)
@@ -332,8 +331,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
     # Enum cannot be nested
     def parse_enum_member(c):
         d = {"name": c.spelling}
-        tokens = [t.spelling for t in c.get_tokens()]
-        if "=" in tokens:
+        if "=" in (tokens := [t.spelling for t in c.get_tokens()]):
             d["val"] = "".join(tokens[2:])
         else:
             assert len(tokens) == 1
