@@ -8,6 +8,11 @@ import subprocess
 from _collections_abc import list_iterator
 
 
+class classproperty(property):
+    def __get__(self, owner_self, owner_cls):
+        return self.fget(owner_cls)
+
+
 def cache_first_arg(func):
     cache = func.cache = {}
 
@@ -20,6 +25,43 @@ def cache_first_arg(func):
     return memoizer
 
 
+class SystemIncludes:
+    # Our libclang version may differ from the "normal" compiler used by the system.
+    # This means we may lack the `isystem` headers that the user expects.
+    # We use the `$CC` environment variable to detect these headers and add them to our include path.
+    @classproperty
+    def paths(cls):
+        if not (cc := os.getenv("CC")):  # pragma: no cover
+            return []
+
+        text = subprocess.check_output(
+            f"{cc} -E -Wp,-v -xc /dev/null",
+            shell=True,
+            text=True,
+            stderr=subprocess.STDOUT,
+        )
+        start_string = "#include <...> search starts here:"
+        start_index = text.find(start_string) + len(start_string)
+        end_index = text.find("End of search list.", start_index)
+        return text[start_index:end_index].split()
+
+
+@type_enforced.Enforcer
+def check_diagnostic(t: clang.cindex.TranslationUnit):
+    print(t)
+    error = 0
+    for diagnostic in t.diagnostics:
+        print(f"clang diagnostic: {diagnostic}", file=sys.stderr)
+        # diagnostic message can contain "error" or "warning"
+        error += "error" in str(diagnostic)
+    if error:  # pragma: no cover // No negatif test yet
+        sys.exit(1)
+
+
+#    _ ___                   _
+#   /   |  ._   _|  _       |_   _|_  _  ._   _ o  _  ._
+#   \_ _|_ | | (_| (/_ ><   |_ >< |_ (/_ | | _> | (_) | |
+#
 @property
 def is_in_system_header2(self):
     if self.is_in_system_header:
@@ -56,10 +98,10 @@ def is_anonymous2(self):
 clang.cindex.SourceLocation.is_in_system_header2 = is_in_system_header2
 clang.cindex.Cursor.is_anonymous2 = is_anonymous2
 
-#   ___
-#    |    ._   _
-#    | \/ |_) (/_
-#      /  |
+#    _                ___
+#   |_) _. ._ _  _     |    ._   _
+#   |  (_| | _> (/_    | \/ |_) (/_
+#                        /  |
 THAPI_types = {
     clang.cindex.TypeKind.VOID: "void",
     clang.cindex.TypeKind.FLOAT: "float",
@@ -120,6 +162,10 @@ def parse_type(t: clang.cindex.Type, cursors: list_iterator | None = None):
             raise NotImplementedError(f"parse_type: {k}")
 
 
+#    _                 _
+#   |_) _. ._ _  _    | \  _   _ |
+#   |  (_| | _> (/_   |_/ (/_ (_ |
+#
 @type_enforced.Enforcer
 def parse_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
     match k := c.kind:
@@ -280,8 +326,6 @@ def parse_union_decl(c: clang.cindex.Cursor):
 #   |_ ._      ._ _    | \  _   _ |
 #   |_ | | |_| | | |   |_/ (/_ (_ |
 #
-
-
 @cache
 @type_enforced.Enforcer
 def parse_enum_decl(c: clang.cindex.Cursor):
@@ -318,43 +362,6 @@ def parse_translation_unit(t):
 #   |\/|  _. o ._
 #   |  | (_| | | |
 #
-def check_diagnostic(t):
-    error = 0
-    for diagnostic in t.diagnostics:
-        print(f"clang diagnostic: {diagnostic}", file=sys.stderr)
-        # diagnostic message can contain "error" or "warning"
-        error += "error" in str(diagnostic)
-    if error:  # pragma: no cover // No negatif test yet
-        sys.exit(1)
-
-
-class SystemIncludes:
-    # Our libclang version may differ from the "normal" compiler used by the system.
-    # This means we may lack the `isystem` headers that the user expects.
-    # We use the `$CC` environment variable to detect these headers and add them to our include path.
-    @staticmethod
-    @cache
-    def get_paths():
-        if not (cc := os.getenv("CC")):  # pragma: no cover
-            return []
-
-        text = subprocess.check_output(
-            f"{cc} -E -Wp,-v -xc /dev/null",
-            shell=True,
-            text=True,
-            stderr=subprocess.STDOUT,
-        )
-        start_string = "#include <...> search starts here:"
-        start_index = text.find(start_string) + len(start_string)
-        end_index = text.find("End of search list.", start_index)
-        return text[start_index:end_index].split()
-
-    @classmethod
-    @property
-    def paths(cls):
-        return cls.get_paths()
-
-
 def h2yaml(path, args=[]):
     global DECLARATIONS
     DECLARATIONS = {
