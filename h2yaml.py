@@ -375,8 +375,8 @@ def parse_translation_unit(t):
 #   |  | (_| | | |
 #
 def h2yaml(path, args=[]):
-    args += [f"-I{p}" for p in SystemIncludes.paths]
-    translation_unit = clang.cindex.Index.create().parse(path, args=args)
+    si_args = [f"-I{p}" for p in SystemIncludes.paths]
+    translation_unit = clang.cindex.Index.create().parse(path, args=si_args + args)
     check_diagnostic(translation_unit)
     decls = parse_translation_unit(translation_unit.cursor)
     return yaml.dump(decls, explicit_start=True)
