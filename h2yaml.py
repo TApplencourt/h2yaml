@@ -194,7 +194,7 @@ def parse_typedef_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = N
     name = {"name": c.spelling}
     # Stop recursing, and don't append if
     # the typedef is defined by system header
-    if not (c.location.is_in_system_header2):
+    if not c.location.is_in_system_header2:
         type_ = parse_type(c.underlying_typedef_type, cursors)
         DECLARATIONS["typedefs"].append(name | {"type": type_})
     return name
@@ -249,14 +249,19 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = 
     if params := [parse_argument(a) for a in c.get_arguments()]:
         d["params"] = params
 
-    if c.type.kind == clang.cindex.TypeKind.FUNCTIONNOPROTO:
-        l = c.location
-        print(
-            f"clang diagnostic: {l.file}:{l.line}:{l.column} warning: Did you forget `void` for your no-parameters function `{c.spelling}`?",
-            file=sys.stderr,
-        )
-    elif c.type.is_function_variadic():
-        d["var_args"] = True
+    match t := c.type.kind:
+        case clang.cindex.TypeKind.FUNCTIONNOPROTO:
+            l = c.location
+            prefix = f"clang diagnostic: {l.file}:{l.line}:{l.column} warning:"
+            print(
+                f"{prefix}: Did you forget `void` for your no-parameters function `{c.spelling}`?",
+                file=sys.stderr,
+            )
+        case clang.cindex.TypeKind.FUNCTIONPROTO:
+            if c.type.is_function_variadic():
+                d["var_args"] = True
+        case _:  # pragma: no cover
+            raise NotImplementedError(f"parse_function_decl: {t}")
 
     DECLARATIONS["functions"].append(d)
 
@@ -264,8 +269,8 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = 
 @type_enforced.Enforcer
 def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator | None = None):
     d = {"type": parse_type(t.get_result(), cursors)}
-    # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
 
+    # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
     arg_types = t.argument_types()
     arg_cursors = [next(cursors) for _ in arg_types]
 
@@ -381,7 +386,7 @@ def h2yaml(path, args=[]):
         d,
         sort_keys=False,
         explicit_start=True,
-    ).strip()
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover
