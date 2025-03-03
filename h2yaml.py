@@ -188,6 +188,7 @@ def parse_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
 #    |    ._   _   _|  _ _|_   | \  _   _ |
 #    | \/ |_) (/_ (_| (/_ |    |_/ (/_ (_ |
 #      /  |
+# `cursors` is an iterator, so impossible to cache
 @cache_first_arg
 @type_enforced.Enforcer
 def parse_typedef_decl(c: clang.cindex.Cursor, cursors: list_iterator):
@@ -356,9 +357,17 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 #    | | (_| | | _> | (_|  |_ | (_) | |   |_| | | |  |_
 #
 def parse_translation_unit(t):
-    user_children = [c for c in t.get_children() if not c.location.is_in_system_header2]
+    global DECLARATIONS
+    DECLARATIONS = {
+        k: []
+        for k in ["structs", "unions", "typedefs", "declarations", "functions", "enums"]
+    }
+
+    user_children = (c for c in t.get_children() if not c.location.is_in_system_header2)
     for c in user_children:
+        # Modify `DECLARATIONS`
         parse_decl(c, c.get_children())
+    return {k: v for k, v in DECLARATIONS.items() if v}
 
 
 #
@@ -366,27 +375,11 @@ def parse_translation_unit(t):
 #   |  | (_| | | |
 #
 def h2yaml(path, args=[]):
-    global DECLARATIONS
-    DECLARATIONS = {
-        "structs": [],
-        "unions": [],
-        "typedefs": [],
-        "declarations": [],
-        "functions": [],
-        "enums": [],
-    }
     args += [f"-I{p}" for p in SystemIncludes.paths]
-
     translation_unit = clang.cindex.Index.create().parse(path, args=args)
     check_diagnostic(translation_unit)
-    parse_translation_unit(translation_unit.cursor)
-
-    d = {k: v for k, v in DECLARATIONS.items() if v}
-    return yaml.dump(
-        d,
-        sort_keys=False,
-        explicit_start=True,
-    )
+    decls = parse_translation_unit(translation_unit.cursor)
+    return yaml.dump(decls, explicit_start=True)
 
 
 if __name__ == "__main__":  # pragma: no cover
