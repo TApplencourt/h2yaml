@@ -133,7 +133,7 @@ def parse_type(t: clang.cindex.Type, cursors: list_iterator | None = None):
         d_qualified["restrict"] = True
     match k := t.kind:
         case _ if kind := THAPI_types.get(k):
-            names = [s for s in t.spelling.split() if s not in d_qualified]
+            names = (s for s in t.spelling.split() if s not in d_qualified)
             return {"kind": kind, "name": " ".join(names)} | d_qualified
         case clang.cindex.TypeKind.POINTER:
             return (
