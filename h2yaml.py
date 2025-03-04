@@ -340,12 +340,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
     # Enum cannot be nested
     def parse_enum_member(c):
         assert c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
-        d = {"name": c.spelling}
-        if "=" in (tokens := [t.spelling for t in c.get_tokens()]):
-            d["val"] = "".join(tokens[2:])
-        else:
-            assert len(tokens) == 1
-        return d
+        return {"name": c.spelling, "val": c.enum_value}
 
     # Hoisting
     d_members = {"members": [parse_enum_member(f) for f in c.get_children()]}

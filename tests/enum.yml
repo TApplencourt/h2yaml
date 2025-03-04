@@ -1,32 +1,57 @@
 ---
+enums:
+- members:
+  - name: A0
+    val: 0
+  name: A
+- members:
+  - name: B0
+    val: 1
+  - name: B1
+    val: 2
+  - name: B2
+    val: 3
+  name: B
+- members:
+  - name: C0
+    val: 1
+  - name: C1
+    val: 2
+  - name: C2
+    val: 3
+  - name: C3
+    val: 5
+  name: C
+- members:
+  - name: E0
+    val: 0
+  name: E
+- members:
+  - name: F0
+    val: 10
+  name: F
 structs:
-- name: S0
-  members:
+- members:
   - name: bar
     type:
       kind: pointer
       type:
         kind: enum
         name: B
-- name: G
-  members:
+  name: S0
+- members:
   - name: f
     type:
       kind: custom_type
       name: F
-unions:
-- name: S1
-  members:
-  - name: bar
-    type:
-      kind: enum
-      name: C
+  name: G
 typedefs:
 - name: D_t
   type:
     kind: enum
     members:
     - name: D0
+      val: 0
 - name: E_t
   type:
     kind: enum
@@ -39,30 +64,10 @@ typedefs:
   type:
     kind: struct
     name: G
-enums:
-- name: A
-  members:
-  - name: A0
-- name: B
-  members:
-  - name: B0
-    val: '1'
-  - name: B1
-  - name: B2
-- name: C
-  members:
-  - name: C0
-    val: '1'
-  - name: C1
-    val: '2'
-  - name: C2
-    val: '0x3'
-  - name: C3
-    val: C1+C2
-- name: E
-  members:
-  - name: E0
-- name: F
-  members:
-  - name: F0
-    val: '10'
+unions:
+- members:
+  - name: bar
+    type:
+      kind: enum
+      name: C
+  name: S1

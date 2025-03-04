@@ -1,68 +1,67 @@
 ---
 functions:
 - name: f0
-  params: !!python/tuple
-  - - type:
-        kind: int
-        name: int
+  params:
+  - type:
+      kind: int
+      name: int
   type:
     kind: void
     name: void
 - name: f1
-  params: !!python/tuple
-  - - name: b
-      type:
-        kind: int
-        name: int
+  params:
+  - name: b
+    type:
+      kind: int
+      name: int
   type:
     kind: void
     name: void
 - name: f2
-  params: !!python/tuple
-  - []
+  params: []
   type:
     kind: void
     name: void
 - name: f3
-  params: !!python/tuple
-  - - name: x
+  params:
+  - name: x
+    type:
+      kind: array
       type:
-        kind: array
-        type:
-          const: true
-          kind: struct
-          name: a
+        const: true
+        kind: struct
+        name: a
   type:
     kind: struct
     name: a
 - name: f4
-  params: !!python/tuple
-  - - name: a
+  params:
+  - name: a
+    type:
+      kind: array
       type:
-        kind: array
-        type:
-          kind: int
-          name: int
+        kind: int
+        name: int
   type:
     kind: int
     name: int
 - name: f5
-  params: !!python/tuple
-  - - name: a
+  params:
+  - name: a
+    type:
+      kind: pointer
       type:
-        kind: pointer
-        type:
-          const: true
-          kind: int
-          name: int
+        const: true
+        kind: int
+        name: int
   type:
     kind: int
     name: int
 - name: f6
-  params: !!python/tuple
-  - - type:
-        kind: int
-        name: int
+  params:
+  - type:
+      kind: int
+      name: int
   type:
     kind: void
     name: void
