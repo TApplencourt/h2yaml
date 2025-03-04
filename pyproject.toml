@@ -1,7 +1,7 @@
 [project]
 name = "h2yaml"
 version = "0.1"
-requires-python = ">= 3.8"
+requires-python = ">= 3.10"
 dependencies = [
   "pyyaml",
   "libclang",
