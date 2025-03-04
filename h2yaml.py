@@ -124,6 +124,29 @@ THAPI_types = {
 
 
 @type_enforced.Enforcer
+def parse_parm_type(t: clang.cindex.Type, cursors: list_iterator):
+    c = next(cursors)
+
+    d_type = {"type": parse_type(t, c.get_children())}
+    if c.is_anonymous2():
+        return d_type
+    return {"name": c.spelling} | d_type
+
+
+@type_enforced.Enforcer
+def parse_function_proto_type(t: clang.cindex.Type, cursors: list_iterator):
+    # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
+    d = {
+        "type": parse_type(t.get_result(), cursors),
+        "params": [parse_parm_type(t_, cursors) for t_ in t.argument_types()],
+    }
+
+    if t.is_function_variadic():
+        d["var_args"] = True
+    return d
+
+
+@type_enforced.Enforcer
 def parse_type(t: clang.cindex.Type, cursors: list_iterator):
     d_qualified = {}
     if t.is_const_qualified():
@@ -157,7 +180,7 @@ def parse_type(t: clang.cindex.Type, cursors: list_iterator):
         case clang.cindex.TypeKind.INCOMPLETEARRAY:
             return {"kind": "array", "type": parse_type(t.element_type, cursors)}
         case clang.cindex.TypeKind.FUNCTIONPROTO:
-            return {"kind": "function"} | parse_function_proto(t, cursors)
+            return {"kind": "function"} | parse_function_proto_type(t, cursors)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_type: {k}")
 
@@ -240,22 +263,8 @@ def parse_var_decl(c: clang.cindex.Cursor):
 #   | |_| | | (_  |_ | (_) | |   |_/ (/_ (_ |
 #
 @type_enforced.Enforcer
-def parse_parm_decl(c: clang.cindex.Cursor, t: clang.cindex.Type | None = None):
-    if t is None:
-        t = c.type
-    d_type = {"type": parse_type(t, c.get_children())}
-    if c.is_anonymous2():
-        return d_type
-    return {"name": c.spelling} | d_type
-
-
-@type_enforced.Enforcer
 def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
-    d = {
-        "name": c.spelling,
-        "type": parse_type(c.type.get_result(), cursors),
-    }
-
+    d = {"name": c.spelling}
     match t := c.type.kind:
         case clang.cindex.TypeKind.FUNCTIONNOPROTO:
             l = c.location
@@ -264,31 +273,13 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = 
                 f"{prefix}: Did you forget `void` for your no-parameters function `{c.spelling}`?",
                 file=sys.stderr,
             )
+            d["type"] = parse_type(c.type.get_result(), cursors)
         case clang.cindex.TypeKind.FUNCTIONPROTO:
-            # c.get_arguments() will always return `CursorKind.PARM_DECL`
-            d["params"] = [parse_parm_decl(a) for a in c.get_arguments()]
-            if c.type.is_function_variadic():
-                d["var_args"] = True
+            d |= parse_function_proto_type(c.type, cursors)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_function_decl: {t}")
 
     DECLARATIONS["functions"].append(d)
-
-
-@type_enforced.Enforcer
-def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator):
-    # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
-    arg_types = t.argument_types()
-    arg_cursors = (next(cursors) for _ in arg_types)
-
-    d = {
-        "type": parse_type(t.get_result(), cursors),
-        "params": [parse_parm_decl(*a) for a in zip(arg_cursors, arg_types)],
-    }
-
-    if t.is_function_variadic():
-        d["var_args"] = True
-    return d
 
 
 #                          __                    _
@@ -306,6 +297,7 @@ def parse_field_decl(c):
     if c.is_anonymous2():
         return d
     return {"name": c.spelling} | d
+
 
 @type_enforced.Enforcer
 def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
