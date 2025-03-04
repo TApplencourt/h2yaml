@@ -26,10 +26,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Run tests
-        # For example, using `pytest`
         run: |
-          # Run pytest under coverage
           CC=gcc uv run coverage run -m pytest
-          # Report coverage and fail if coverage is less than 100%
           uv run coverage report --fail-under=100
 
