@@ -247,9 +247,10 @@ def parse_argument(c: clang.cindex.Cursor, t: clang.cindex.Type | None = None):
 
 @type_enforced.Enforcer
 def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
-    d = {"name": c.spelling, "type": parse_type(c.type.get_result(), cursors)}
-    if params := [parse_argument(a) for a in c.get_arguments()]:
-        d["params"] = params
+    d = {
+        "name": c.spelling,
+        "type": parse_type(c.type.get_result(), cursors),
+    }
 
     match t := c.type.kind:
         case clang.cindex.TypeKind.FUNCTIONNOPROTO:
@@ -260,6 +261,7 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = 
                 file=sys.stderr,
             )
         case clang.cindex.TypeKind.FUNCTIONPROTO:
+            d["params"] = ([parse_argument(a) for a in c.get_arguments()],)
             if c.type.is_function_variadic():
                 d["var_args"] = True
         case _:  # pragma: no cover
@@ -270,13 +272,14 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = 
 
 @type_enforced.Enforcer
 def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator):
-    d = {"type": parse_type(t.get_result(), cursors)}
-
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
     arg_types = t.argument_types()
-    arg_cursors = [next(cursors) for _ in arg_types]
-    if params := [parse_argument(*a) for a in zip(arg_cursors, arg_types)]:
-        d["params"] = params
+    arg_cursors = (next(cursors) for _ in arg_types)
+
+    d = {
+        "type": parse_type(t.get_result(), cursors),
+        "params": [parse_argument(*a) for a in zip(arg_cursors, arg_types)],
+    }
 
     if t.is_function_variadic():
         d["var_args"] = True
@@ -390,7 +393,7 @@ if __name__ == "__main__":  # pragma: no cover
         print(f"USAGE: {sys.argv[0]} [options] file")
         sys.exit(1)
 
-    _, file, *c_args = sys.argv
+    _, *c_args, file = sys.argv
     args = ["tmp.h", c_args, [("tmp.h", sys.stdin)]] if file == "-" else [file, c_args]
     yml = h2yaml(*args)
     print(yml, end="")

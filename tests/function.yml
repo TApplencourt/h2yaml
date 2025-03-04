@@ -1,120 +1,130 @@
 ---
+functions:
+- name: f0
+  params: !!python/tuple
+  - - type:
+        kind: int
+        name: int
+  type:
+    kind: void
+    name: void
+- name: f1
+  params: !!python/tuple
+  - - name: b
+      type:
+        kind: int
+        name: int
+  type:
+    kind: void
+    name: void
+- name: f2
+  params: !!python/tuple
+  - []
+  type:
+    kind: void
+    name: void
+- name: f3
+  params: !!python/tuple
+  - - name: x
+      type:
+        kind: array
+        type:
+          const: true
+          kind: struct
+          name: a
+  type:
+    kind: struct
+    name: a
+- name: f4
+  params: !!python/tuple
+  - - name: a
+      type:
+        kind: array
+        type:
+          kind: int
+          name: int
+  type:
+    kind: int
+    name: int
+- name: f5
+  params: !!python/tuple
+  - - name: a
+      type:
+        kind: pointer
+        type:
+          const: true
+          kind: int
+          name: int
+  type:
+    kind: int
+    name: int
+- name: f6
+  params: !!python/tuple
+  - - type:
+        kind: int
+        name: int
+  type:
+    kind: void
+    name: void
+  var_args: true
+- name: f7
+  type:
+    kind: void
+    name: void
 structs:
-- name: a
-  members:
+- members:
   - name: i
     type:
       kind: int
       name: int
+  name: a
 typedefs:
 - name: a_t
   type:
     kind: pointer
     type:
       kind: function
-      type:
-        kind: int
-        name: int
       params:
       - type:
           kind: int
           name: int
+      type:
+        kind: int
+        name: int
 - name: b_t
-  type:
-    kind: int
-    name: int
-- name: c_t
   type:
     kind: pointer
     type:
       kind: function
+      params: []
       type:
-        kind: custom_type
-        name: b_t
+        kind: int
+        name: int
+- name: c_t
+  type:
+    kind: int
+    name: int
+- name: d_t
+  type:
+    kind: pointer
+    type:
+      kind: function
       params:
       - name: x
         type:
           kind: int
           name: int
-- name: d_t
+      type:
+        kind: custom_type
+        name: c_t
+- name: e_t
   type:
     kind: function
-    type:
-      kind: void
-      name: void
     params:
     - type:
         kind: int
         name: int
+    type:
+      kind: void
+      name: void
     var_args: true
-functions:
-- name: f0
-  type:
-    kind: void
-    name: void
-  params:
-  - type:
-      kind: int
-      name: int
-- name: f1
-  type:
-    kind: void
-    name: void
-  params:
-  - name: b
-    type:
-      kind: int
-      name: int
-- name: f2
-  type:
-    kind: void
-    name: void
-- name: f3
-  type:
-    kind: struct
-    name: a
-  params:
-  - name: x
-    type:
-      kind: array
-      type:
-        kind: struct
-        name: a
-        const: true
-- name: f4
-  type:
-    kind: int
-    name: int
-  params:
-  - name: a
-    type:
-      kind: array
-      type:
-        kind: int
-        name: int
-- name: f5
-  type:
-    kind: int
-    name: int
-  params:
-  - name: a
-    type:
-      kind: pointer
-      type:
-        kind: int
-        name: int
-        const: true
-- name: f6
-  type:
-    kind: void
-    name: void
-  params:
-  - type:
-      kind: int
-      name: int
-  var_args: true
-- name: f7
-  type:
-    kind: void
-    name: void
-
