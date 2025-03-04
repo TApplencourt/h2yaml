@@ -375,13 +375,22 @@ def parse_translation_unit(t):
 #   |\/|  _. o ._
 #   |  | (_| | | |
 #
-def h2yaml(path, args=[]):
+def h2yaml(path, args=[], unsaved_files=None):
     si_args = [f"-I{p}" for p in SystemIncludes.paths]
-    translation_unit = clang.cindex.Index.create().parse(path, args=si_args + args)
+    translation_unit = clang.cindex.Index.create().parse(
+        path, args=si_args + args, unsaved_files=unsaved_files
+    )
     check_diagnostic(translation_unit)
     decls = parse_translation_unit(translation_unit.cursor)
     return yaml.dump(decls, explicit_start=True)
 
 
 if __name__ == "__main__":  # pragma: no cover
-    print(h2yaml(sys.argv[1], args=sys.argv[2:]))
+    if len(sys.argv) == 1:
+        print(f"USAGE: {sys.argv[0]} [options] file")
+        sys.exit(1)
+
+    _, file, *c_args = sys.argv
+    args = ["tmp.h", c_args, [("tmp.h", sys.stdin)]] if file == "-" else [file, c_args]
+    yml = h2yaml(*args)
+    print(yml, end="")
