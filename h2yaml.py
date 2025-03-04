@@ -261,7 +261,7 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = 
                 file=sys.stderr,
             )
         case clang.cindex.TypeKind.FUNCTIONPROTO:
-            d["params"] = ([parse_argument(a) for a in c.get_arguments()],)
+            d["params"] = [parse_argument(a) for a in c.get_arguments()]
             if c.type.is_function_variadic():
                 d["var_args"] = True
         case _:  # pragma: no cover
