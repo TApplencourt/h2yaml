@@ -181,6 +181,10 @@ def parse_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
             return parse_function_decl(c, cursors)
         case clang.cindex.CursorKind.VAR_DECL:
             return parse_var_decl(c)
+        case clang.cindex.CursorKind.FIELD_DECL:
+            return parse_field_decl(c)
+        case clang.cindex.CursorKind.ENUM_CONSTANT_DECL:
+            return parse_enum_constant_del(c)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_decl: {k}")
 
@@ -236,7 +240,7 @@ def parse_var_decl(c: clang.cindex.Cursor):
 #   | |_| | | (_  |_ | (_) | |   |_/ (/_ (_ |
 #
 @type_enforced.Enforcer
-def parse_argument(c: clang.cindex.Cursor, t: clang.cindex.Type | None = None):
+def parse_parm_decl(c: clang.cindex.Cursor, t: clang.cindex.Type | None = None):
     if t is None:
         t = c.type
     d_type = {"type": parse_type(t, c.get_children())}
@@ -261,7 +265,8 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = 
                 file=sys.stderr,
             )
         case clang.cindex.TypeKind.FUNCTIONPROTO:
-            d["params"] = [parse_argument(a) for a in c.get_arguments()]
+            # c.get_arguments() will always return `CursorKind.PARM_DECL`
+            d["params"] = [parse_parm_decl(a) for a in c.get_arguments()]
             if c.type.is_function_variadic():
                 d["var_args"] = True
         case _:  # pragma: no cover
@@ -278,7 +283,7 @@ def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator):
 
     d = {
         "type": parse_type(t.get_result(), cursors),
-        "params": [parse_argument(*a) for a in zip(arg_cursors, arg_types)],
+        "params": [parse_parm_decl(*a) for a in zip(arg_cursors, arg_types)],
     }
 
     if t.is_function_variadic():
@@ -294,21 +299,21 @@ def parse_function_proto(t: clang.cindex.Type, cursors: list_iterator):
 # - One for typedef `TYPEDEF_DECL.underlying_typedef_type`
 # - and one for `STRUCT_DECL`
 # so we cache to avoid appending twice to DECLARATIONS['structs']
+def parse_field_decl(c):
+    d = {"type": parse_type(c.type, c.get_children())}
+    if c.is_bitfield():
+        d["num_bits"] = c.get_bitfield_width()
+    if c.is_anonymous2():
+        return d
+    return {"name": c.spelling} | d
+
 @type_enforced.Enforcer
 def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
-    def parse_field(c):
-        assert c.kind == clang.cindex.CursorKind.FIELD_DECL
-        d = {"type": parse_type(c.type, c.get_children())}
-        if c.is_bitfield():
-            d["num_bits"] = c.get_bitfield_width()
-        if c.is_anonymous2():
-            return d
-        return {"name": c.spelling} | d
-
     # typedef struct A8 a8 is a valid c syntax;
     # But we should not append it to `structs` as it's undefined
     d_name = {"name": c.spelling}
-    if not (members := [parse_field(f) for f in c.type.get_fields()]):
+    #  c.type.get_fields() will always return `CursorKind.FIELD_DECL`
+    if not (members := [parse_decl(f) for f in c.type.get_fields()]):
         return d_name
     d_members = {"members": members}
     # Hoisting
@@ -334,16 +339,16 @@ def parse_union_decl(c: clang.cindex.Cursor):
 #   |_ ._      ._ _    | \  _   _ |
 #   |_ | | |_| | | |   |_/ (/_ (_ |
 #
+def parse_enum_constant_del(c):
+    return {"name": c.spelling, "val": c.enum_value}
+
+
 @cache
 @type_enforced.Enforcer
 def parse_enum_decl(c: clang.cindex.Cursor):
-    # Enum cannot be nested
-    def parse_enum_member(c):
-        assert c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
-        return {"name": c.spelling, "val": c.enum_value}
-
+    # c.get_children() will always return `CursorKind.ENUM_CONSTANT_DECL`
+    d_members = {"members": [parse_decl(f) for f in c.get_children()]}
     # Hoisting
-    d_members = {"members": [parse_enum_member(f) for f in c.get_children()]}
     if c.is_anonymous2():
         return d_members
     d_name = {"name": c.spelling}
