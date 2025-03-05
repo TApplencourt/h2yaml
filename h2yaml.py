@@ -380,7 +380,7 @@ if __name__ == "__main__":  # pragma: no cover
         print(f"USAGE: {sys.argv[0]} [options] file")
         sys.exit(1)
 
-    _, *c_args, file = sys.argv
+    *c_args, file = sys.argv[1:]
     args = ["tmp.h", c_args, [("tmp.h", sys.stdin)]] if file == "-" else [file, c_args]
     yml = h2yaml(*args)
     print(yml, end="")
