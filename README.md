@@ -1,6 +1,6 @@
 # h2yaml
 
-Transform your C header file (`.h`) into yaml.
+Transform your C header file (`.h`) into YAML.
 Based on `libclang` and their python binding (https://libclang.readthedocs.io/en/latest/index.html#).
 
 ```
