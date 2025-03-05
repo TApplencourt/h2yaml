@@ -287,7 +287,7 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator):
 # - and one for `STRUCT_DECL`
 # so we cache to avoid appending twice to DECLARATIONS['structs']
 @type_enforced.Enforcer
-def _parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
+def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
     def parse_field_decl(c: clang.cindex.Cursor):
         assert c.kind == clang.cindex.CursorKind.FIELD_DECL
         d = {"type": parse_type(c.type, c.get_children())}
@@ -313,13 +313,13 @@ def _parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
 @cache
 @type_enforced.Enforcer
 def parse_struct_decl(c: clang.cindex.Cursor):
-    return _parse_struct_union_decl(c, "structs")
+    return _parse_struct_union_decl("structs", c)
 
 
 @cache
 @type_enforced.Enforcer
 def parse_union_decl(c: clang.cindex.Cursor):
-    return _parse_struct_union_decl(c, "unions")
+    return _parse_struct_union_decl("unions", c)
 
 
 #    _                  _
