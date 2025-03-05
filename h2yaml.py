@@ -286,18 +286,6 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator):
 # - One for typedef `TYPEDEF_DECL.underlying_typedef_type`
 # - and one for `STRUCT_DECL`
 # so we cache to avoid appending twice to DECLARATIONS['structs']
-
-
-def hoisting(name_decl, name, members):
-    # Hoisting
-    d_members = {"members": members}
-    if c.is_anonymous2():
-        return d_members
-    d_name = {"name": name}
-    DECLARATIONS["enums"].append(d_name | d_members)
-    return d_name
-
-
 @type_enforced.Enforcer
 def _parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
     def parse_field_decl(c: clang.cindex.Cursor):
