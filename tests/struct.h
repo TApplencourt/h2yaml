@@ -1,6 +1,9 @@
 struct A0 {
   int x;
 };
+
+volatile struct A0 Av;
+
 struct A1 {
   int x;
 } a;

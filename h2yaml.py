@@ -126,7 +126,6 @@ THAPI_types = {
 @type_enforced.Enforcer
 def parse_parm_type(t: clang.cindex.Type, cursors: list_iterator):
     c = next(cursors)
-
     d_type = {"type": parse_type(t, c.get_children())}
     if c.is_anonymous2():
         return d_type
@@ -155,16 +154,16 @@ def parse_type(t: clang.cindex.Type, cursors: list_iterator):
         d_qualified["volatile"] = True
     if t.is_restrict_qualified():
         d_qualified["restrict"] = True
+
     match k := t.kind:
         case _ if kind := THAPI_types.get(k):
             names = (s for s in t.spelling.split() if s not in d_qualified)
             return {"kind": kind, "name": " ".join(names)} | d_qualified
         case clang.cindex.TypeKind.POINTER:
-            return (
-                {"kind": "pointer"}
-                | d_qualified
-                | {"type": parse_type(t.get_pointee(), cursors)}
-            )
+            return {
+                "kind": "pointer",
+                "type": parse_type(t.get_pointee(), cursors),
+            } | d_qualified
         case clang.cindex.TypeKind.ELABORATED:
             next(cursors)
             decl = t.get_declaration()
@@ -176,9 +175,12 @@ def parse_type(t: clang.cindex.Type, cursors: list_iterator):
                 "kind": "array",
                 "type": parse_type(t.element_type, cursors),
                 "length": t.element_count,
-            }
+            } | d_qualified
         case clang.cindex.TypeKind.INCOMPLETEARRAY:
-            return {"kind": "array", "type": parse_type(t.element_type, cursors)}
+            return {
+                "kind": "array",
+                "type": parse_type(t.element_type, cursors),
+            } | d_qualified
         case clang.cindex.TypeKind.FUNCTIONPROTO:
             return {"kind": "function"} | parse_function_proto_type(t, cursors)
         case _:  # pragma: no cover
@@ -204,10 +206,6 @@ def parse_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
             return parse_function_decl(c, cursors)
         case clang.cindex.CursorKind.VAR_DECL:
             return parse_var_decl(c)
-        case clang.cindex.CursorKind.FIELD_DECL:
-            return parse_field_decl(c)
-        case clang.cindex.CursorKind.ENUM_CONSTANT_DECL:
-            return parse_enum_constant_del(c)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_decl: {k}")
 
@@ -263,7 +261,7 @@ def parse_var_decl(c: clang.cindex.Cursor):
 #   | |_| | | (_  |_ | (_) | |   |_/ (/_ (_ |
 #
 @type_enforced.Enforcer
-def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
+def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator):
     d = {"name": c.spelling}
     match t := c.type.kind:
         case clang.cindex.TypeKind.FUNCTIONNOPROTO:
@@ -286,11 +284,8 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = 
 #   | | ._  o  _  ._      (_ _|_ ._     _ _|_   | \  _   _ |
 #   |_| | | | (_) | | o   __) |_ | |_| (_  |_   |_/ (/_ (_ |
 #                     /
-# `typedef struct` will recurse twice into this function:
-# - One for typedef `TYPEDEF_DECL.underlying_typedef_type`
-# - and one for `STRUCT_DECL`
-# so we cache to avoid appending twice to DECLARATIONS['structs']
 def parse_field_decl(c):
+    assert c.kind == clang.cindex.CursorKind.FIELD_DECL
     d = {"type": parse_type(c.type, c.get_children())}
     if c.is_bitfield():
         d["num_bits"] = c.get_bitfield_width()
@@ -299,13 +294,16 @@ def parse_field_decl(c):
     return {"name": c.spelling} | d
 
 
+# `typedef struct|union` will recurse twice into this function:
+# - One for typedef `TYPEDEF_DECL.underlying_typedef_type`
+# - and one for `STRUCT_DECL`
+# so we cache to avoid appending twice to DECLARATIONS['structs']
 @type_enforced.Enforcer
 def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
     # typedef struct A8 a8 is a valid c syntax;
     # But we should not append it to `structs` as it's undefined
     d_name = {"name": c.spelling}
-    #  c.type.get_fields() will always return `CursorKind.FIELD_DECL`
-    if not (members := [parse_decl(f) for f in c.type.get_fields()]):
+    if not (members := [parse_field_decl(f) for f in c.type.get_fields()]):
         return d_name
     d_members = {"members": members}
     # Hoisting
@@ -331,15 +329,16 @@ def parse_union_decl(c: clang.cindex.Cursor):
 #   |_ ._      ._ _    | \  _   _ |
 #   |_ | | |_| | | |   |_/ (/_ (_ |
 #
-def parse_enum_constant_del(c):
+@type_enforced.Enforcer
+def parse_enum_constant_del(c: clang.cindex.Cursor):
+    assert c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
     return {"name": c.spelling, "val": c.enum_value}
 
 
 @cache
 @type_enforced.Enforcer
 def parse_enum_decl(c: clang.cindex.Cursor):
-    # c.get_children() will always return `CursorKind.ENUM_CONSTANT_DECL`
-    d_members = {"members": [parse_decl(f) for f in c.get_children()]}
+    d_members = {"members": [parse_enum_constant_del(f) for f in c.get_children()]}
     # Hoisting
     if c.is_anonymous2():
         return d_members
@@ -352,7 +351,8 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 #    | ._ _. ._   _ |  _. _|_ o  _  ._    | | ._  o _|_
 #    | | (_| | | _> | (_|  |_ | (_) | |   |_| | | |  |_
 #
-def parse_translation_unit(t):
+def parse_translation_unit(t: clang.cindex.Cursor):
+    assert t.kind == clang.cindex.CursorKind.TRANSLATION_UNIT
     global DECLARATIONS
     DECLARATIONS = {
         k: []

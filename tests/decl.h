@@ -15,10 +15,10 @@ void (*a7)(double a, int);
 typedef int a8_t;
 a8_t (*a8)(a8_t);
 
-int a9[];
+const int a9[];
 
-int a10[];
-int a10[25];
+const int a10[];
+const int a10[25];
 
 volatile const int a11;
 

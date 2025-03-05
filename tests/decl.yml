@@ -1,9 +1,4 @@
 ---
-typedefs:
-- name: a8_t
-  type:
-    kind: int
-    name: int
 declarations:
 - name: a0
   type:
@@ -46,9 +41,6 @@ declarations:
     kind: pointer
     type:
       kind: function
-      type:
-        kind: void
-        name: void
       params:
       - type:
           kind: float
@@ -56,14 +48,14 @@ declarations:
       - type:
           kind: int
           name: int
+      type:
+        kind: void
+        name: void
 - name: a7
   type:
     kind: pointer
     type:
       kind: function
-      type:
-        kind: void
-        name: void
       params:
       - name: a
         type:
@@ -72,62 +64,72 @@ declarations:
       - type:
           kind: int
           name: int
+      type:
+        kind: void
+        name: void
 - name: a8
   type:
     kind: pointer
     type:
       kind: function
-      type:
-        kind: custom_type
-        name: a8_t
       params:
       - type:
           kind: custom_type
           name: a8_t
+      type:
+        kind: custom_type
+        name: a8_t
 - name: a9
   type:
     kind: array
+    length: 1
     type:
+      const: true
       kind: int
       name: int
-    length: 1
 - name: a10
   type:
     kind: array
+    length: 25
     type:
+      const: true
       kind: int
       name: int
-    length: 25
 - name: a11
   type:
+    const: true
     kind: int
     name: int
-    const: true
     volatile: true
 - name: a12
   type:
-    kind: pointer
     const: true
+    kind: pointer
     restrict: true
     type:
+      const: true
       kind: int
       name: int
-      const: true
 - name: a13
+  storage: extern
   type:
     kind: pointer
     type:
+      const: true
       kind: char
       name: char
-      const: true
-  storage: extern
 - name: a14
   type:
     kind: array
+    length: 1
     type:
       kind: array
+      length: 3
       type:
         kind: int
         name: int
-      length: 3
-    length: 1
+typedefs:
+- name: a8_t
+  type:
+    kind: int
+    name: int

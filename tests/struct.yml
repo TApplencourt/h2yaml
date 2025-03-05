@@ -1,19 +1,28 @@
 ---
+declarations:
+- name: Av
+  type:
+    kind: struct
+    name: A0
+    volatile: true
+- name: a
+  type:
+    kind: struct
+    name: A1
 structs:
-- name: A0
-  members:
+- members:
   - name: x
     type:
       kind: int
       name: int
-- name: A1
-  members:
+  name: A0
+- members:
   - name: x
     type:
       kind: int
       name: int
-- name: A2
-  members:
+  name: A1
+- members:
   - name: a
     type:
       kind: struct
@@ -22,8 +31,8 @@ structs:
         type:
           kind: int
           name: int
-- name: A3
-  members:
+  name: A2
+- members:
   - type:
       kind: struct
       members:
@@ -31,38 +40,38 @@ structs:
         type:
           kind: int
           name: int
-- name: B1
-  members:
+  name: A3
+- members:
   - name: x
     type:
       kind: int
       name: int
-- name: A4
-  members:
+  name: B1
+- members:
   - name: a4
     type:
       kind: struct
       name: B1
-- name: B5
-  members:
+  name: A4
+- members:
   - name: x
     type:
       kind: int
       name: int
-- name: A5
-  members:
+  name: B5
+- members:
   - name: b
     type:
       kind: struct
       name: B5
-- name: B6
-  members:
+  name: A5
+- members:
   - name: x
     type:
       kind: int
       name: int
-- name: A6
-  members:
+  name: B6
+- members:
   - name: a6
     type:
       kind: union
@@ -71,33 +80,34 @@ structs:
         type:
           kind: struct
           name: B6
-- name: A7
-  members:
+  name: A6
+- members:
   - name: b1
-    type:
-      kind: int
-      name: unsigned int
     num_bits: 5
-  - type:
+    type:
       kind: int
       name: unsigned int
-    num_bits: 0
+  - num_bits: 0
+    type:
+      kind: int
+      name: unsigned int
   - name: b2
-    type:
-      kind: int
-      name: unsigned int
     num_bits: 6
-  - name: b3
     type:
       kind: int
       name: unsigned int
+  - name: b3
     num_bits: 15
-- name: A10
-  members:
+    type:
+      kind: int
+      name: unsigned int
+  name: A7
+- members:
   - name: a
     type:
       kind: int
       name: int
+  name: A10
 typedefs:
 - name: a5
   type:
@@ -125,8 +135,3 @@ typedefs:
   type:
     kind: struct
     name: A10
-declarations:
-- name: a
-  type:
-    kind: struct
-    name: A1
