@@ -220,8 +220,8 @@ def parse_typedef_decl(c: clang.cindex.Cursor, cursors: list_iterator):
     # Stop recursing, and don't append if
     # the typedef is defined by system header
     if not c.location.is_in_system_header2:
-        type_ = parse_type(c.underlying_typedef_type, cursors)
-        DECLARATIONS["typedefs"].append(d_name | {"type": type_})
+        d_type = {"type": parse_type(c.underlying_typedef_type, cursors)}
+        DECLARATIONS["typedefs"].append(d_name | d_type)
     return d_name
 
 
@@ -372,7 +372,7 @@ def h2yaml(path, args=[], unsaved_files=None):
     )
     check_diagnostic(translation_unit)
     decls = parse_translation_unit(translation_unit.cursor)
-    return yaml.dump(decls, explicit_start=True)
+    return yaml.dump(decls)
 
 
 if __name__ == "__main__":  # pragma: no cover
