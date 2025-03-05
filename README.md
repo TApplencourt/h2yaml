@@ -29,7 +29,7 @@ Require python `>=3.10`; one cannot write a Parser without Pattern Matching.
 
 ## Usage
 ```
-python h2yaml.py path/to/your/header.h
+h2yaml path/to/your/header.h
 ```
 Can also read from `stdin`.
 
