@@ -124,17 +124,15 @@ THAPI_types = {
 
 
 @type_enforced.Enforcer
-def parse_parm_type(t: clang.cindex.Type, cursors: list_iterator):
-    c = next(cursors)
-    d_type = {"type": parse_type(t, c.get_children())}
-    if c.is_anonymous2():
-        return d_type
-    return {"name": c.spelling} | d_type
-
-
-@type_enforced.Enforcer
 def parse_function_proto_type(t: clang.cindex.Type, cursors: list_iterator):
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
+    def parse_parm_type(t: clang.cindex.Type, cursors: list_iterator):
+        c = next(cursors)
+        d_type = {"type": parse_type(t, c.get_children())}
+        if c.is_anonymous2():
+            return d_type
+        return {"name": c.spelling} | d_type
+
     d = {
         "type": parse_type(t.get_result(), cursors),
         "params": [parse_parm_type(t_, cursors) for t_ in t.argument_types()],
@@ -284,22 +282,33 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator):
 #   | | ._  o  _  ._      (_ _|_ ._     _ _|_   | \  _   _ |
 #   |_| | | | (_) | | o   __) |_ | |_| (_  |_   |_/ (/_ (_ |
 #                     /
-def parse_field_decl(c):
-    assert c.kind == clang.cindex.CursorKind.FIELD_DECL
-    d = {"type": parse_type(c.type, c.get_children())}
-    if c.is_bitfield():
-        d["num_bits"] = c.get_bitfield_width()
-    if c.is_anonymous2():
-        return d
-    return {"name": c.spelling} | d
-
-
-# `typedef struct|union` will recurse twice into this function:
+# `typedef struct|union|enum` will recurse twice into this function:
 # - One for typedef `TYPEDEF_DECL.underlying_typedef_type`
 # - and one for `STRUCT_DECL`
 # so we cache to avoid appending twice to DECLARATIONS['structs']
+
+
+def hoisting(name_decl, name, members):
+    # Hoisting
+    d_members = {"members": members}
+    if c.is_anonymous2():
+        return d_members
+    d_name = {"name": name}
+    DECLARATIONS["enums"].append(d_name | d_members)
+    return d_name
+
+
 @type_enforced.Enforcer
-def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
+def _parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
+    def parse_field_decl(c: clang.cindex.Cursor):
+        assert c.kind == clang.cindex.CursorKind.FIELD_DECL
+        d = {"type": parse_type(c.type, c.get_children())}
+        if c.is_bitfield():
+            d["num_bits"] = c.get_bitfield_width()
+        if c.is_anonymous2():
+            return d
+        return {"name": c.spelling} | d
+
     # typedef struct A8 a8 is a valid c syntax;
     # But we should not append it to `structs` as it's undefined
     d_name = {"name": c.spelling}
@@ -316,28 +325,26 @@ def parse_struct_union_decl(c: clang.cindex.Cursor, name_decl: str):
 @cache
 @type_enforced.Enforcer
 def parse_struct_decl(c: clang.cindex.Cursor):
-    return parse_struct_union_decl(c, "structs")
+    return _parse_struct_union_decl(c, "structs")
 
 
 @cache
 @type_enforced.Enforcer
 def parse_union_decl(c: clang.cindex.Cursor):
-    return parse_struct_union_decl(c, "unions")
+    return _parse_struct_union_decl(c, "unions")
 
 
 #    _                  _
 #   |_ ._      ._ _    | \  _   _ |
 #   |_ | | |_| | | |   |_/ (/_ (_ |
 #
-@type_enforced.Enforcer
-def parse_enum_constant_del(c: clang.cindex.Cursor):
-    assert c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
-    return {"name": c.spelling, "val": c.enum_value}
-
-
 @cache
 @type_enforced.Enforcer
 def parse_enum_decl(c: clang.cindex.Cursor):
+    def parse_enum_constant_del(c: clang.cindex.Cursor):
+        assert c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
+        return {"name": c.spelling, "val": c.enum_value}
+
     d_members = {"members": [parse_enum_constant_del(f) for f in c.get_children()]}
     # Hoisting
     if c.is_anonymous2():
