@@ -8,6 +8,9 @@ dependencies = [
   "type_enforced"
 ]
 
+[project.scripts]
+h2yaml = "h2yaml:main"
+
 [project.optional-dependencies]
 test = [
   "pytest",
