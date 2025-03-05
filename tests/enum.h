@@ -16,3 +16,7 @@ typedef enum F { F0 = 10 } F;
 typedef struct G {
   F f;
 } G;
+
+struct S2 {
+  enum { H0 } a;
+};

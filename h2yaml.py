@@ -87,7 +87,7 @@ def is_anonymous2(self):
         case clang.cindex.CursorKind.ENUM_DECL:
             # Black Magic: https://stackoverflow.com/a/35184821
             # Unclear what the case of `a` represent
-            return is_in_usr(["@EA@", "@Ea@"])
+            return self.is_anonymous() or is_in_usr(["@EA@", "@Ea@"])
         case clang.cindex.CursorKind.STRUCT_DECL:
             # Fix typedef struct {int a } A9_t, where the `struct` is not anonynous
             return self.is_anonymous() or is_in_usr(["@SA@", "@Sa@"])
@@ -334,10 +334,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
         return {"name": c.spelling, "val": c.enum_value}
 
     d_members = {"members": [parse_enum_constant_del(f) for f in c.get_children()]}
-    # Hoisting
-    if c.is_anonymous2():
-        return d_members
-    d_name = {"name": c.spelling}
+    d_name = {"name": c.spelling} if not c.is_anonymous2() else {}
     DECLARATIONS["enums"].append(d_name | d_members)
     return d_name
 

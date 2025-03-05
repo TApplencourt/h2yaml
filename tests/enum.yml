@@ -1,9 +1,11 @@
----
 enums:
 - members:
   - name: A0
     val: 0
   name: A
+- members:
+  - name: A1
+    val: 0
 - members:
   - name: B0
     val: 1
@@ -23,6 +25,9 @@ enums:
     val: 5
   name: C
 - members:
+  - name: D0
+    val: 0
+- members:
   - name: E0
     val: 0
   name: E
@@ -30,6 +35,9 @@ enums:
   - name: F0
     val: 10
   name: F
+- members:
+  - name: H0
+    val: 0
 structs:
 - members:
   - name: bar
@@ -45,13 +53,15 @@ structs:
       kind: custom_type
       name: F
   name: G
+- members:
+  - name: a
+    type:
+      kind: enum
+  name: S2
 typedefs:
 - name: D_t
   type:
     kind: enum
-    members:
-    - name: D0
-      val: 0
 - name: E_t
   type:
     kind: enum
