@@ -102,8 +102,32 @@ def is_anonymous2(self):
             return self.is_anonymous()
 
 
+def is_inline_specifier(self):
+    assert self.kind == clang.cindex.CursorKind.FUNCTION_DECL
+    return any(token.spelling == "inline" for token in self.get_tokens())
+
+
 clang.cindex.SourceLocation.is_in_system_header2 = is_in_system_header2
 clang.cindex.Cursor.is_anonymous2 = is_anonymous2
+clang.cindex.Cursor.is_inline_specifier = is_inline_specifier
+
+
+#    _                 __                         _
+#   |_) _. ._ _  _    (_ _|_  _  ._ _.  _   _    /  |  _.  _  _
+#   |  (_| | _> (/_   __) |_ (_) | (_| (_| (/_   \_ | (_| _> _>
+#                                       _|
+@type_enforced.Enforcer
+def parse_storage_class(c: clang.cindex.Cursor):
+    match sc := c.storage_class:
+        case clang.cindex.StorageClass.EXTERN:
+            return {"storage": "extern"}
+        case clang.cindex.StorageClass.STATIC:
+            return {"storage": "static"}
+        case clang.cindex.StorageClass.NONE:
+            return {}
+        case _:  # pragma: no cover
+            raise NotImplementedError(f"parse_storage_class: {sc}")
+
 
 #    _                ___
 #   |_) _. ._ _  _     |    ._   _
@@ -248,15 +272,7 @@ def parse_var_decl(c: clang.cindex.Cursor):
     d = {
         "name": c.spelling,
         "type": parse_type(c.type, c.get_children()),
-    }
-
-    match t := c.storage_class:
-        case clang.cindex.StorageClass.EXTERN:
-            d["storage"] = "extern"
-        case clang.cindex.StorageClass.NONE:
-            pass
-        case _:  # pragma: no cover
-            raise NotImplementedError(f"parse_var_decl_storage_class: {t}")
+    } | parse_storage_class(c)
 
     DECLARATIONS["declarations"].append(d)
 
@@ -268,6 +284,11 @@ def parse_var_decl(c: clang.cindex.Cursor):
 @type_enforced.Enforcer
 def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator):
     d = {"name": c.spelling}
+    d |= parse_storage_class(c)
+
+    if c.is_inline_specifier():
+        d["inline"] = True
+
     match t := c.type.kind:
         case clang.cindex.TypeKind.FUNCTIONNOPROTO:
             l = c.location

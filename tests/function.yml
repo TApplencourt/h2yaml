@@ -78,6 +78,13 @@ functions:
   type:
     kind: custom_type
     name: size_t
+- inline: true
+  name: f9
+  params: []
+  storage: static
+  type:
+    kind: void
+    name: void
 structs:
 - members:
   - name: i

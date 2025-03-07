@@ -25,3 +25,5 @@ void f7();
 
 __attribute__((deprecated("foo"))) size_t f8(size_t size
                                              __attribute__((unused)));
+
+static inline void f9(void);
