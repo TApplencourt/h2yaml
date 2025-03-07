@@ -300,7 +300,7 @@ def parse_var_decl(c: clang.cindex.Cursor):
 #   |_    ._   _ _|_ o  _  ._    | \  _   _ |
 #   | |_| | | (_  |_ | (_) | |   |_/ (/_ (_ |
 #
-# @type_enforced.Enforcer
+@type_enforced.Enforcer
 def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
     if c.is_definition():
         print(
