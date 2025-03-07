@@ -283,8 +283,7 @@ def parse_var_decl(c: clang.cindex.Cursor):
 #
 @type_enforced.Enforcer
 def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator):
-    d = {"name": c.spelling}
-    d |= parse_storage_class(c)
+    d = {"name": c.spelling} | parse_storage_class(c)
 
     if c.is_inline_specifier():
         d["inline"] = True
