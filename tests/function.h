@@ -1,3 +1,4 @@
+#include <stddef.h>
 void f0(int);
 void f1(int b);
 void f2(void);
@@ -21,3 +22,6 @@ void f6(int, ...);
 typedef void(e_t)(int, ...);
 
 void f7();
+
+__attribute__((deprecated("foo"))) size_t f8(size_t size
+                                             __attribute__((unused)));

@@ -25,6 +25,13 @@ def cache_first_arg(func):
     return memoizer
 
 
+def next_non_attribute(cursors):
+    c = next(cursors)
+    if not c.kind.is_attribute():
+        return c
+    return next_non_attribute(cursors)
+
+
 class SystemIncludes:
     # Our libclang version may differ from the "normal" compiler used by the system.
     # This means we may lack the `isystem` headers that the user expects.
@@ -127,7 +134,7 @@ THAPI_types = {
 def parse_function_proto_type(t: clang.cindex.Type, cursors: list_iterator):
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
     def parse_parm_type(t: clang.cindex.Type, cursors: list_iterator):
-        c = next(cursors)
+        c = next_non_attribute(cursors)
         d_type = {"type": parse_type(t, c.get_children())}
         if c.is_anonymous2():
             return d_type
@@ -163,7 +170,7 @@ def parse_type(t: clang.cindex.Type, cursors: list_iterator):
                 "type": parse_type(t.get_pointee(), cursors),
             } | d_qualified
         case clang.cindex.TypeKind.ELABORATED:
-            next(cursors)
+            next_non_attribute(cursors)
             decl = t.get_declaration()
             return parse_decl(decl, decl.get_children()) | d_qualified
         case clang.cindex.TypeKind.RECORD:
@@ -365,13 +372,14 @@ def parse_translation_unit(t: clang.cindex.Cursor):
 def h2yaml(path, args=[], unsaved_files=None):
     si_args = [f"-I{p}" for p in SystemIncludes.paths]
     translation_unit = clang.cindex.Index.create().parse(
-        path, args=args+si_args, unsaved_files=unsaved_files
+        path, args=args + si_args, unsaved_files=unsaved_files
     )
     check_diagnostic(translation_unit)
     decls = parse_translation_unit(translation_unit.cursor)
     return yaml.dump(decls)
 
-def main(): # pragma: no cover
+
+def main():  # pragma: no cover
     if len(sys.argv) == 1:
         print(f"USAGE: {sys.argv[0]} [options] file")
         sys.exit(1)
@@ -380,6 +388,7 @@ def main(): # pragma: no cover
     args = ["tmp.h", c_args, [("tmp.h", sys.stdin)]] if file == "-" else [file, c_args]
     yml = h2yaml(*args)
     print(yml, end="")
+
 
 if __name__ == "__main__":  # pragma: no cover
     main()

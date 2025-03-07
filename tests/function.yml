@@ -1,4 +1,3 @@
----
 functions:
 - name: f0
   params:
@@ -70,6 +69,15 @@ functions:
   type:
     kind: void
     name: void
+- name: f8
+  params:
+  - name: size
+    type:
+      kind: custom_type
+      name: size_t
+  type:
+    kind: custom_type
+    name: size_t
 structs:
 - members:
   - name: i
