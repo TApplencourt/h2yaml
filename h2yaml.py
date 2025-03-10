@@ -32,6 +32,12 @@ def next_non_attribute(cursors):
     return next_non_attribute(cursors)
 
 
+@type_enforced.Enforcer
+def diagnostic_prefix(c: clang.cindex.Cursor):
+    l = c.location
+    return f"h2yaml diagnostic: {l.file}:{l.line}:{l.column}"
+
+
 class SystemIncludes:
     # Our libclang version may differ from the "normal" compiler used by the system.
     # This means we may lack the `isystem` headers that the user expects.
@@ -283,6 +289,13 @@ def parse_var_decl(c: clang.cindex.Cursor):
 #
 @type_enforced.Enforcer
 def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator):
+    if c.is_definition():
+        print(
+            f"{diagnostic_prefix(c)}: Warning: `{c.spelling}` is a function definition and will be ignored.",
+            file=sys.stderr,
+        )
+        return {}
+
     d = {"name": c.spelling} | parse_storage_class(c)
 
     if c.is_inline_specifier():
@@ -290,10 +303,8 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator):
 
     match t := c.type.kind:
         case clang.cindex.TypeKind.FUNCTIONNOPROTO:
-            l = c.location
-            prefix = f"clang diagnostic: {l.file}:{l.line}:{l.column} warning:"
             print(
-                f"{prefix}: Did you forget `void` for your no-parameters function `{c.spelling}`?",
+                f"{diagnostic_prefix(c)}: Warning: Did you forget `void` for your no-parameters function `{c.spelling}`?",
                 file=sys.stderr,
             )
             d["type"] = parse_type(c.type.get_result(), cursors)
