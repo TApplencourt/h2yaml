@@ -395,7 +395,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 #    | ._ _. ._   _ |  _. _|_ o  _  ._    | | ._  o _|_
 #    | | (_| | | _> | (_|  |_ | (_) | |   |_| | | |  |_
 #
-def parse_translation_unit(t: clang.cindex.Cursor, pattern=None):
+def parse_translation_unit(t: clang.cindex.Cursor, pattern):
     assert t.kind == clang.cindex.CursorKind.TRANSLATION_UNIT
 
     # We need to set some global variable
