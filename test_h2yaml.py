@@ -14,3 +14,14 @@ def test_cmp_to_ref(filename):
         ref_yml = yaml.safe_load(f)
 
     assert new_yml == ref_yml
+
+
+def _test_foo():
+
+    with open(f"ref.yml", "r") as f:
+        ref_yml = yaml.safe_load(f)
+
+    with open(f"new.yml", "r") as f:
+        new_yml = yaml.safe_load(f)
+
+    assert new_yml == ref_yml

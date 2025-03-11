@@ -5,7 +5,8 @@ import yaml
 import type_enforced
 import os
 import subprocess
-from _collections_abc import list_iterator
+import re
+from typing import Generator, Callable
 
 
 class classproperty(property):
@@ -75,11 +76,16 @@ def check_diagnostic(t: clang.cindex.TranslationUnit):
 #   \_ _|_ | | (_| (/_ ><   |_ >< |_ (/_ | | _> | (_) | |
 #
 @property
-def is_in_system_header2(self):
+def is_in_instering_header(self):
     if self.is_in_system_header:
-        return True
+        return False
     basename = os.path.basename(self.file.name)
-    return any(basename.startswith(s) for s in ["std", "__std"])
+    if any(basename.startswith(s) for s in ["std", "__std"]):
+        return False
+    if PATTERN_INSTEREDING_HEADER is None:
+        return True
+
+    return re.search(PATTERN_INSTEREDING_HEADER, basename)
 
 
 def is_anonymous2(self):
@@ -113,9 +119,16 @@ def is_inline_specifier(self):
     return any(token.spelling == "inline" for token in self.get_tokens())
 
 
-clang.cindex.SourceLocation.is_in_system_header2 = is_in_system_header2
+def get_children2(self):
+    for c in self.get_children():
+        if self.location.is_in_instering_header:
+            yield c
+
+
 clang.cindex.Cursor.is_anonymous2 = is_anonymous2
 clang.cindex.Cursor.is_inline_specifier = is_inline_specifier
+clang.cindex.Cursor.get_children2 = get_children2
+clang.cindex.SourceLocation.is_in_instering_header = is_in_instering_header
 
 
 #    _                 __                         _
@@ -161,11 +174,11 @@ THAPI_types = {
 
 
 @type_enforced.Enforcer
-def parse_function_proto_type(t: clang.cindex.Type, cursors: list_iterator):
+def parse_function_proto_type(t: clang.cindex.Type, cursors: Callable):
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
-    def parse_parm_type(t: clang.cindex.Type, cursors: list_iterator):
+    def parse_parm_type(t: clang.cindex.Type, cursors: Callable):
         c = next_non_attribute(cursors)
-        d_type = {"type": parse_type(t, c.get_children())}
+        d_type = {"type": parse_type(t, c.get_children2())}
         if c.is_anonymous2():
             return d_type
         return {"name": c.spelling} | d_type
@@ -181,7 +194,7 @@ def parse_function_proto_type(t: clang.cindex.Type, cursors: list_iterator):
 
 
 @type_enforced.Enforcer
-def parse_type(t: clang.cindex.Type, cursors: list_iterator):
+def parse_type(t: clang.cindex.Type, cursors: Callable):
     d_qualified = {}
     if t.is_const_qualified():
         d_qualified["const"] = True
@@ -202,7 +215,7 @@ def parse_type(t: clang.cindex.Type, cursors: list_iterator):
         case clang.cindex.TypeKind.ELABORATED:
             next_non_attribute(cursors)
             decl = t.get_declaration()
-            return parse_decl(decl, decl.get_children()) | d_qualified
+            return parse_decl(decl, decl.get_children2()) | d_qualified
         case clang.cindex.TypeKind.RECORD:
             return parse_decl(t.get_declaration())
         case clang.cindex.TypeKind.CONSTANTARRAY:
@@ -227,7 +240,7 @@ def parse_type(t: clang.cindex.Type, cursors: list_iterator):
 #   |  (_| | _> (/_   |_/ (/_ (_ |
 #
 @type_enforced.Enforcer
-def parse_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
+def parse_decl(c: clang.cindex.Cursor, cursors: Callable | None = None):
     match k := c.kind:
         case clang.cindex.CursorKind.STRUCT_DECL:
             return {"kind": "struct"} | parse_struct_decl(c)
@@ -252,11 +265,11 @@ def parse_decl(c: clang.cindex.Cursor, cursors: list_iterator | None = None):
 # `cursors` is an iterator, so impossible to cache
 @cache_first_arg
 @type_enforced.Enforcer
-def parse_typedef_decl(c: clang.cindex.Cursor, cursors: list_iterator):
+def parse_typedef_decl(c: clang.cindex.Cursor, cursors: Callable):
     d_name = {"name": c.spelling}
     # Stop recursing, and don't append if
     # the typedef is defined by system header
-    if not c.location.is_in_system_header2:
+    if c.location.is_in_instering_header:
         d_type = {"type": parse_type(c.underlying_typedef_type, cursors)}
         DECLARATIONS["typedefs"].append(d_name | d_type)
     return d_name
@@ -277,7 +290,7 @@ def parse_var_decl(c: clang.cindex.Cursor):
 
     d = {
         "name": c.spelling,
-        "type": parse_type(c.type, c.get_children()),
+        "type": parse_type(c.type, c.get_children2()),
     } | parse_storage_class(c)
 
     DECLARATIONS["declarations"].append(d)
@@ -287,8 +300,8 @@ def parse_var_decl(c: clang.cindex.Cursor):
 #   |_    ._   _ _|_ o  _  ._    | \  _   _ |
 #   | |_| | | (_  |_ | (_) | |   |_/ (/_ (_ |
 #
-@type_enforced.Enforcer
-def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator):
+# @type_enforced.Enforcer
+def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
     if c.is_definition():
         print(
             f"{diagnostic_prefix(c)}: Warning: `{c.spelling}` is a function definition and will be ignored.",
@@ -328,7 +341,7 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: list_iterator):
 def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
     def parse_field_decl(c: clang.cindex.Cursor):
         assert c.kind == clang.cindex.CursorKind.FIELD_DECL
-        d = {"type": parse_type(c.type, c.get_children())}
+        d = {"type": parse_type(c.type, c.get_children2())}
         if c.is_bitfield():
             d["num_bits"] = c.get_bitfield_width()
         if c.is_anonymous2():
@@ -371,7 +384,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
         assert c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
         return {"name": c.spelling, "val": c.enum_value}
 
-    d_members = {"members": [parse_enum_constant_del(f) for f in c.get_children()]}
+    d_members = {"members": [parse_enum_constant_del(f) for f in c.get_children2()]}
     d_name = {"name": c.spelling} if not c.is_anonymous2() else {}
     DECLARATIONS["enums"].append(d_name | d_members)
     return d_name
@@ -381,18 +394,22 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 #    | ._ _. ._   _ |  _. _|_ o  _  ._    | | ._  o _|_
 #    | | (_| | | _> | (_|  |_ | (_) | |   |_| | | |  |_
 #
-def parse_translation_unit(t: clang.cindex.Cursor):
+def parse_translation_unit(t: clang.cindex.Cursor, pattern=None):
     assert t.kind == clang.cindex.CursorKind.TRANSLATION_UNIT
+
+    # We need to set some global variable
     global DECLARATIONS
     DECLARATIONS = {
         k: []
         for k in ("structs", "unions", "typedefs", "declarations", "functions", "enums")
     }
+    global PATTERN_INSTEREDING_HEADER
+    PATTERN_INSTEREDING_HEADER = pattern
 
-    user_children = (c for c in t.get_children() if not c.location.is_in_system_header2)
+    user_children = (c for c in t.get_children() if c.location.is_in_instering_header)
     for c in user_children:
         # Modify `DECLARATIONS`
-        parse_decl(c, c.get_children())
+        parse_decl(c, c.get_children2())
     return {k: v for k, v in DECLARATIONS.items() if v}
 
 
@@ -400,24 +417,33 @@ def parse_translation_unit(t: clang.cindex.Cursor):
 #   |\/|  _. o ._
 #   |  | (_| | | |
 #
-def h2yaml(path, args=[], unsaved_files=None):
+def h2yaml(path, args=[], unsaved_files=None, pattern=None):
     si_args = [f"-I{p}" for p in SystemIncludes.paths]
     translation_unit = clang.cindex.Index.create().parse(
         path, args=args + si_args, unsaved_files=unsaved_files
     )
     check_diagnostic(translation_unit)
-    decls = parse_translation_unit(translation_unit.cursor)
+    decls = parse_translation_unit(translation_unit.cursor, pattern)
     return yaml.dump(decls)
 
 
 def main():  # pragma: no cover
     if len(sys.argv) == 1:
-        print(f"USAGE: {sys.argv[0]} [options] file")
+        print(f"USAGE: {sys.argv[0]} [clang_options] [--filter-header REGEX] file")
         sys.exit(1)
+
+    try:
+        i = sys.argv.index("--filter-header")
+    except ValueError:
+        pattern = None
+    else:
+        del sys.argv[i]
+        pattern = sys.argv[i]
+        del sys.argv[i]
 
     *c_args, file = sys.argv[1:]
     args = ["tmp.h", c_args, [("tmp.h", sys.stdin)]] if file == "-" else [file, c_args]
-    yml = h2yaml(*args)
+    yml = h2yaml(*args, pattern=pattern)
     print(yml, end="")
 
 
