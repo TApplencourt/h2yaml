@@ -351,7 +351,8 @@ def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
     # typedef struct A8 a8 is a valid c syntax;
     # But we should not append it to `structs` as it's undefined
     d_name = {"name": c.spelling}
-    if not (members := [parse_field_decl(f) for f in c.type.get_fields()]):
+    fields = (f for f in c.type.get_fields() if f.location.is_in_instering_header)
+    if not (members := [parse_field_decl(f) for f in fields]):
         return d_name
     d_members = {"members": members}
     # Hoisting

@@ -16,12 +16,11 @@ def test_cmp_to_ref(filename):
     assert new_yml == ref_yml
 
 
-def _test_foo():
+def test_filter_include():
+    filename = "./tests//header_filter/foo"
+    new_yml = yaml.safe_load(h2yaml(f"{filename}.h", pattern="foo.h"))
 
-    with open(f"ref.yml", "r") as f:
+    with open(f"{filename}.yml", "r") as f:
         ref_yml = yaml.safe_load(f)
-
-    with open(f"new.yml", "r") as f:
-        new_yml = yaml.safe_load(f)
 
     assert new_yml == ref_yml
