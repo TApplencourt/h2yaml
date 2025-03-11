@@ -1,0 +1,10 @@
+functions:
+- name: foo
+  params:
+  - name: a
+    type:
+      kind: struct
+      name: A0
+  type:
+    kind: void
+    name: void
