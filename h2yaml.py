@@ -205,7 +205,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
 
     match k := t.kind:
         case _ if kind := THAPI_types.get(k):
-            names = (s for s in t.spelling.split() if s not in d_qualified)
+            names = list(s for s in t.spelling.split() if s not in d_qualified)
             if kind == 'int' and 'int' not in names:
                 names += ['int']
             return {"kind": kind, "name": " ".join(names)} | d_qualified
