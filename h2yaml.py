@@ -76,7 +76,7 @@ def check_diagnostic(t: clang.cindex.TranslationUnit):
 #   \_ _|_ | | (_| (/_ ><   |_ >< |_ (/_ | | _> | (_) | |
 #
 @property
-def is_in_instering_header(self):
+def is_in_interesting_header(self):
     if self.is_in_system_header:
         return False
     basename = os.path.basename(self.file.name)
@@ -119,16 +119,16 @@ def is_inline_specifier(self):
     return any(token.spelling == "inline" for token in self.get_tokens())
 
 
-def get_children2(self):
+def get_interesting_children(self):
     for c in self.get_children():
-        if self.location.is_in_instering_header:
+        if self.location.is_in_interesting_header:
             yield c
 
 
 clang.cindex.Cursor.is_anonymous2 = is_anonymous2
 clang.cindex.Cursor.is_inline_specifier = is_inline_specifier
-clang.cindex.Cursor.get_children2 = get_children2
-clang.cindex.SourceLocation.is_in_instering_header = is_in_instering_header
+clang.cindex.Cursor.get_interesting_children = get_interesting_children
+clang.cindex.SourceLocation.is_in_interesting_header = is_in_interesting_header
 
 
 #    _                 __                         _
@@ -178,7 +178,7 @@ def parse_function_proto_type(t: clang.cindex.Type, cursors: Callable):
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
     def parse_parm_type(t: clang.cindex.Type, cursors: Callable):
         c = next_non_attribute(cursors)
-        d_type = {"type": parse_type(t, c.get_children2())}
+        d_type = {"type": parse_type(t, c.get_interesting_children())}
         if c.is_anonymous2():
             return d_type
         return {"name": c.spelling} | d_type
@@ -207,8 +207,8 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
         case _ if kind := THAPI_types.get(k):
             names = list(s for s in t.spelling.split() if s not in d_qualified)
             # Hack to mimic old parser, remove when not needed anymore
-            if kind == 'int' and 'int' not in names:
-                names.append('int')
+            if kind == "int" and "int" not in names:
+                names.append("int")
             return {"kind": kind, "name": " ".join(names)} | d_qualified
         case clang.cindex.TypeKind.POINTER:
             return {
@@ -218,7 +218,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
         case clang.cindex.TypeKind.ELABORATED:
             next_non_attribute(cursors)
             decl = t.get_declaration()
-            return parse_decl(decl, decl.get_children2()) | d_qualified
+            return parse_decl(decl, decl.get_interesting_children()) | d_qualified
         case clang.cindex.TypeKind.RECORD:
             return parse_decl(t.get_declaration())
         case clang.cindex.TypeKind.CONSTANTARRAY:
@@ -272,7 +272,7 @@ def parse_typedef_decl(c: clang.cindex.Cursor, cursors: Callable):
     d_name = {"name": c.spelling}
     # Stop recursing, and don't append if
     # the typedef is defined by system header
-    if c.location.is_in_instering_header:
+    if c.location.is_in_interesting_header:
         d_type = {"type": parse_type(c.underlying_typedef_type, cursors)}
         DECLARATIONS["typedefs"].append(d_name | d_type)
     return d_name
@@ -293,7 +293,7 @@ def parse_var_decl(c: clang.cindex.Cursor):
 
     d = {
         "name": c.spelling,
-        "type": parse_type(c.type, c.get_children2()),
+        "type": parse_type(c.type, c.get_interesting_children()),
     } | parse_storage_class(c)
 
     DECLARATIONS["declarations"].append(d)
@@ -344,7 +344,7 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
 def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
     def parse_field_decl(c: clang.cindex.Cursor):
         assert c.kind == clang.cindex.CursorKind.FIELD_DECL
-        d = {"type": parse_type(c.type, c.get_children2())}
+        d = {"type": parse_type(c.type, c.get_interesting_children())}
         if c.is_bitfield():
             d["num_bits"] = c.get_bitfield_width()
         if c.is_anonymous2():
@@ -354,7 +354,7 @@ def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
     # typedef struct A8 a8 is a valid c syntax;
     # But we should not append it to `structs` as it's undefined
     d_name = {"name": c.spelling}
-    fields = (f for f in c.type.get_fields() if f.location.is_in_instering_header)
+    fields = (f for f in c.type.get_fields() if f.location.is_in_interesting_header)
     if not (members := [parse_field_decl(f) for f in fields]):
         return d_name
     d_members = {"members": members}
@@ -388,7 +388,9 @@ def parse_enum_decl(c: clang.cindex.Cursor):
         assert c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
         return {"name": c.spelling, "val": c.enum_value}
 
-    d_members = {"members": [parse_enum_constant_del(f) for f in c.get_children2()]}
+    d_members = {
+        "members": [parse_enum_constant_del(f) for f in c.get_interesting_children()]
+    }
     d_name = {"name": c.spelling} if not c.is_anonymous2() else {}
     DECLARATIONS["enums"].append(d_name | d_members)
     return d_name
@@ -410,10 +412,10 @@ def parse_translation_unit(t: clang.cindex.Cursor, pattern):
     global PATTERN_INSTEREDING_HEADER
     PATTERN_INSTEREDING_HEADER = pattern
 
-    user_children = (c for c in t.get_children() if c.location.is_in_instering_header)
+    user_children = (c for c in t.get_children() if c.location.is_in_interesting_header)
     for c in user_children:
         # Modify `DECLARATIONS`
-        parse_decl(c, c.get_children2())
+        parse_decl(c, c.get_interesting_children())
     return {k: v for k, v in DECLARATIONS.items() if v}
 
 
