@@ -12,7 +12,7 @@ try:
     import type_enforced
 except ModuleNotFoundError:
 
-    class type_enforced:
+    class type_enforced:  # pragma: no cover
         def Enforcer(f: Callable):
             return f
 
