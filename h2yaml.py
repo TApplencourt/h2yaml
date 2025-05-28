@@ -10,8 +10,7 @@ import re
 try:
     import type_enforced
 except ModuleNotFoundError:  # pragma: no cover
-    # This branch is not always hit during tests coverage
-    # since required dependencies are installed
+
     class type_enforced:
         def Enforcer(f: Callable):
             return f
@@ -90,6 +89,17 @@ def check_diagnostic(t: clang.cindex.TranslationUnit):
 #   /   |  ._   _|  _       |_   _|_  _  ._   _ o  _  ._
 #   \_ _|_ | | (_| (/_ ><   |_ >< |_ (/_ | | _> | (_) | |
 #
+
+# Monkey-patch for missing __hash__ in clang.cindex.Cursor
+# See upstream: https://github.com/llvm/llvm-project/pull/132377
+# For an unknown reason, `hasattr(clang.cindex.Cursor, "__hash__")` returns True
+# so we fall back to using try/except.
+try:
+    hash(clang.cindex.Cursor())
+except TypeError:  # pragma: no cover
+    clang.cindex.Cursor.__hash__ = lambda self: self.hash
+
+
 @cached_property
 def is_in_interesting_header(self):
     # Note: This function uses the global variable PATTERN_INTERESTING_HEADER.
