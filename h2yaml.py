@@ -2,7 +2,12 @@ import sys
 from functools import cache, wraps
 import clang.cindex
 import yaml
-import type_enforced
+try:
+    import type_enforced
+except ModuleNotFoundError:
+    class type_enforced:
+        def Enforcer(f):
+            return f
 import os
 import subprocess
 import re

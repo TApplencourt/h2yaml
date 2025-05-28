@@ -5,7 +5,6 @@ requires-python = ">= 3.10"
 dependencies = [
   "pyyaml",
   "libclang",
-  "type_enforced"
 ]
 
 [project.scripts]
@@ -13,6 +12,7 @@ h2yaml = "h2yaml:main"
 
 [project.optional-dependencies]
 test = [
+  "type_enforced",
   "pytest",
   "pytest-icdiff",
   "coverage"
