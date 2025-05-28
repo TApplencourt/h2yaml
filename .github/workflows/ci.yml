@@ -21,17 +21,33 @@ jobs:
             - dependency-group: "test"
     steps:
       - uses: actions/checkout@v4
-
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
-
       - name: Install the project
         run: uv sync --group ${{ matrix.dependency-group }}
-
       - name: Run tests
         run: |
-          CC=gcc uv run coverage run -m pytest
-          uv run coverage report --fail-under=100
+          CC=gcc uv run coverage run --module pytest
+          uv run coverage report --show-missing --fail-under=100
+  test-packaging-and-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: |
+          uv venv
+          source .venv/bin/activate
+          pip install .
+      - run: h2yaml --help
+      - run: CC=gcc h2yaml ./tests/header_filter/foo.h --filter-header foo.h
+      - run: echo "int a;" | h2yaml -
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uvx ruff check --ignore E741
+      - run: uvx ruff format --exit-non-zero-on-format

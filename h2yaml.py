@@ -1,4 +1,4 @@
-from functools import cache, wraps
+from functools import cache, cached_property, wraps
 from typing import Callable
 import sys
 import clang.cindex
@@ -6,15 +6,19 @@ import yaml
 import os
 import subprocess
 import re
-from typing import Callable
 
 try:
     import type_enforced
-except ModuleNotFoundError:
-
-    class type_enforced:  # pragma: no cover
+except ModuleNotFoundError:  # pragma: no cover
+    # This branch is not always hit during tests coverage
+    # since required dependencies are installed
+    class type_enforced:
         def Enforcer(f: Callable):
             return f
+#
+#   | | _|_ o |  _
+#   |_|  |_ | | _>
+#
 
 
 class classproperty(property):
@@ -22,29 +26,32 @@ class classproperty(property):
         return self.fget(owner_cls)
 
 
-def cache_first_arg(func):
-    cache = func.cache = {}
+def cache_using_first_arg(f: Callable):
+    cache = f.cache = {}
 
-    @wraps(func)
+    @wraps(f)
     def memoizer(arg1, *args):
         if arg1 not in cache:
-            cache[arg1] = func(arg1, *args)
+            cache[arg1] = f(arg1, *args)
         return cache[arg1]
 
     return memoizer
 
 
 def next_non_attribute(cursors):
-    c = next(cursors)
-    if not c.kind.is_attribute():
-        return c
-    return next_non_attribute(cursors)
+    for c in cursors:
+        if not c.kind.is_attribute():
+            return c
 
 
 @type_enforced.Enforcer
-def diagnostic_prefix(c: clang.cindex.Cursor):
+def h2yaml_warning(c: clang.cindex.Cursor, msg):
     l = c.location
-    return f"h2yaml diagnostic: {l.file}:{l.line}:{l.column}"
+    prefix = f"h2yaml diagnostic: {l.file}:{l.line}:{l.column}"
+    print(
+        f"{prefix}: Warning: {msg}",
+        file=sys.stderr,
+    )
 
 
 class SystemIncludes:
@@ -70,12 +77,12 @@ class SystemIncludes:
 
 @type_enforced.Enforcer
 def check_diagnostic(t: clang.cindex.TranslationUnit):
-    error = 0
+    error = False
     for diagnostic in t.diagnostics:
         print(f"clang diagnostic: {diagnostic}", file=sys.stderr)
         # diagnostic message can contain "error" or "warning"
-        error += "error" in str(diagnostic)
-    if error:  # pragma: no cover // No negatif test yet
+        error |= "error" in str(diagnostic)
+    if error:  # pragma: no cover # No negatif tests yet
         sys.exit(1)
 
 
@@ -83,17 +90,25 @@ def check_diagnostic(t: clang.cindex.TranslationUnit):
 #   /   |  ._   _|  _       |_   _|_  _  ._   _ o  _  ._
 #   \_ _|_ | | (_| (/_ ><   |_ >< |_ (/_ | | _> | (_) | |
 #
-@property
+@cached_property
 def is_in_interesting_header(self):
+    # Note: This function uses the global variable PATTERN_INTERESTING_HEADER.
+
+    # Skip system headers
     if self.is_in_system_header:
         return False
+    # Skip standard library headers
     basename = os.path.basename(self.file.name)
     if any(basename.startswith(s) for s in ["std", "__std"]):
         return False
-    if PATTERN_INSTEREDING_HEADER is None:
-        return True
+    # Apply user-defined white-list pattern
+    return re.search(PATTERN_INTERESTING_HEADER, basename)
 
-    return re.search(PATTERN_INSTEREDING_HEADER, basename)
+
+ccs = clang.cindex.SourceLocation
+ccs.is_in_interesting_header = is_in_interesting_header
+# TypeError: Cannot use cached_property instance without calling __set_name__ on it.
+ccs.is_in_interesting_header.__set_name__(ccs, "is_in_interesting_header")
 
 
 def is_anonymous2(self):
@@ -102,24 +117,29 @@ def is_anonymous2(self):
 
     match self.kind:
         case clang.cindex.CursorKind.PARM_DECL:
-            # `is_anonymous` for `double a` in `void (*a5)(double a, int);` will return True.
-            # We don't use `not spelling` anymore due to the "feature" of libclang,
-            #   where in (*a6)(a6_t) the spelling of `a6_t` will be `a6_t` and not `None`
-            return not (self.get_usr())
+            # `is_anonymous()` returns True for `double a` in `void (*a5)(double a, int);`.
+            # We no longer use `not spelling` trick to due to a libclang quirk:
+            # In `(*a6)(a6_t)`, the spelling of `a6_t` will be `a6_t` instead of None.
+            return not self.get_usr()
         case clang.cindex.CursorKind.FIELD_DECL:
-            # - unnamed struct will have "anonymous ..."  in `spelling`, but `is_anonymous` will be true
-            # - named struct in union will be considered anonymous
-            # - unnamed bitfield will have `is_anonymous` be `false`, but spelling will be empty
+            # - Unnamed structs have "anonymous ..." in `spelling`, and `is_anonymous()` returns True.
+            # - Named structs within unions: `is_anonymous()` returns True.
+            # - Unnamed bitfields: `is_anonymous()` returns False, but `spelling` is empty.
             return not self.spelling or "(anonymous at" in self.spelling
         case clang.cindex.CursorKind.ENUM_DECL:
-            # Black Magic: https://stackoverflow.com/a/35184821
-            # Unclear what the case of `a` represent
+            # Fix for `struct S2 { enum { H0 } a; }` where `is_anonymous()` returns False for the enum.
+            # Fortunately, Clang uses `@EA@` and `@Ea@` in the USR for anonymous enums.
+            # (Though I never saw `@Ea@`...)
             return self.is_anonymous() or is_in_usr(["@EA@", "@Ea@"])
         case clang.cindex.CursorKind.STRUCT_DECL:
-            # Fix typedef struct {int a } A9_t, where the `struct` is not anonynous
+            # Fix for `typedef struct { int a; } A9_t;`, where `is_anonymous()` returns False for the struct.
+            # Fortunately, Clang uses `@SA@` and `@Sa@` in the USR for anonymous structs.
             return self.is_anonymous() or is_in_usr(["@SA@", "@Sa@"])
         case _:
             return self.is_anonymous()
+
+
+clang.cindex.Cursor.is_anonymous2 = is_anonymous2
 
 
 def is_inline_specifier(self):
@@ -133,10 +153,8 @@ def get_interesting_children(self):
             yield c
 
 
-clang.cindex.Cursor.is_anonymous2 = is_anonymous2
 clang.cindex.Cursor.is_inline_specifier = is_inline_specifier
 clang.cindex.Cursor.get_interesting_children = get_interesting_children
-clang.cindex.SourceLocation.is_in_interesting_header = is_in_interesting_header
 
 
 #    _                 __                         _
@@ -214,7 +232,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
     match k := t.kind:
         case _ if kind := THAPI_types.get(k):
             names = list(s for s in t.spelling.split() if s not in d_qualified)
-            # Hack to mimic old parser, remove when not needed anymore
+            # Hack to mimic old ruby parser, remove when not needed anymore
             if kind == "int" and "int" not in names:
                 names.append("int")
             return {"kind": kind, "name": " ".join(names)} | d_qualified
@@ -224,6 +242,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
                 "type": parse_type(t.get_pointee(), cursors),
             } | d_qualified
         case clang.cindex.TypeKind.ELABORATED:
+            # Move the cursors to keep it in sync which children
             next_non_attribute(cursors)
             decl = t.get_declaration()
             return parse_decl(decl, decl.get_interesting_children()) | d_qualified
@@ -274,12 +293,11 @@ def parse_decl(c: clang.cindex.Cursor, cursors: Callable | None = None):
 #    | \/ |_) (/_ (_| (/_ |    |_/ (/_ (_ |
 #      /  |
 # `cursors` is an iterator, so impossible to cache
-@cache_first_arg
+@cache_using_first_arg
 @type_enforced.Enforcer
 def parse_typedef_decl(c: clang.cindex.Cursor, cursors: Callable):
     d_name = {"name": c.spelling}
-    # Stop recursing, and don't append if
-    # the typedef is defined by system header
+    # Only call `underlying_typedef_type` if we are interested by the header
     if c.location.is_in_interesting_header:
         d_type = {"type": parse_type(c.underlying_typedef_type, cursors)}
         DECLARATIONS["typedefs"].append(d_name | d_type)
@@ -293,9 +311,9 @@ def parse_typedef_decl(c: clang.cindex.Cursor, cursors: Callable):
 @type_enforced.Enforcer
 def parse_var_decl(c: clang.cindex.Cursor):
     # Assume all INCOMPLETEARRAY types will eventually be completed.
-    # This works because libclang treats `a[]` as:
-    # `tentative array definition assumed to have one element`
-    # As a result, it will be parsed as a `CONSTANTARRAY`
+    # This is safe because libclang treats `a[]` as a
+    # "tentative array definition assumed to have one element".
+    # As a result, such arrays will be also parsed as `CONSTANTARRAY`.
     if c.type.kind == clang.cindex.TypeKind.INCOMPLETEARRAY:
         return
 
@@ -314,9 +332,8 @@ def parse_var_decl(c: clang.cindex.Cursor):
 @type_enforced.Enforcer
 def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
     if c.is_definition():
-        print(
-            f"{diagnostic_prefix(c)}: Warning: `{c.spelling}` is a function definition and will be ignored.",
-            file=sys.stderr,
+        h2yaml_warning(
+            c, f"`{c.spelling}` is a function definition and will be ignored."
         )
         return {}
 
@@ -327,9 +344,9 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
 
     match t := c.type.kind:
         case clang.cindex.TypeKind.FUNCTIONNOPROTO:
-            print(
-                f"{diagnostic_prefix(c)}: Warning: Did you forget `void` for your no-parameters function `{c.spelling}`?",
-                file=sys.stderr,
+            h2yaml_warning(
+                c,
+                f"`{c.spelling}` defines a function with no parameters, consider specifying `void`.",
             )
             d["type"] = parse_type(c.type.get_result(), cursors)
         case clang.cindex.TypeKind.FUNCTIONPROTO:
@@ -417,12 +434,14 @@ def parse_translation_unit(t: clang.cindex.Cursor, pattern):
         k: []
         for k in ("structs", "unions", "typedefs", "declarations", "functions", "enums")
     }
-    global PATTERN_INSTEREDING_HEADER
-    PATTERN_INSTEREDING_HEADER = pattern
+    # PATTERN_INTERESTING_HEADER is used in `is_in_interesting_header`
+    # to filter out list of header to parse
+    global PATTERN_INTERESTING_HEADER
+    PATTERN_INTERESTING_HEADER = pattern
 
     user_children = (c for c in t.get_children() if c.location.is_in_interesting_header)
     for c in user_children:
-        # Modify `DECLARATIONS`
+        # Warning: will modify `DECLARATIONS` global variable
         parse_decl(c, c.get_interesting_children())
     return {k: v for k, v in DECLARATIONS.items() if v}
 
@@ -431,10 +450,10 @@ def parse_translation_unit(t: clang.cindex.Cursor, pattern):
 #   |\/|  _. o ._
 #   |  | (_| | | |
 #
-def h2yaml(path, args=[], unsaved_files=None, pattern=None):
-    si_args = [f"-I{p}" for p in SystemIncludes.paths]
+def h2yaml(path, *, clang_args=[], unsaved_files=None, pattern=".*"):
+    system_args = [f"-I{p}" for p in SystemIncludes.paths]
     translation_unit = clang.cindex.Index.create().parse(
-        path, args=args + si_args, unsaved_files=unsaved_files
+        path, args=clang_args + system_args, unsaved_files=unsaved_files
     )
     check_diagnostic(translation_unit)
     decls = parse_translation_unit(translation_unit.cursor, pattern)
@@ -442,22 +461,33 @@ def h2yaml(path, args=[], unsaved_files=None, pattern=None):
 
 
 def main():  # pragma: no cover
-    if len(sys.argv) == 1:
-        print(f"USAGE: {sys.argv[0]} [clang_options] [--filter-header REGEX] file")
-        sys.exit(1)
+    if (error := len(sys.argv) == 1) or sys.argv[1] == "--help":
+        # TODO: `--filter-header` default value should be `file`
+        print(
+            f"USAGE: {sys.argv[0]} [clang_option...] [--filter-header REGEX] [ file | - ]"
+        )
+        if error:
+            sys.exit(1)
+        return
 
+    d_args = {}
     try:
         i = sys.argv.index("--filter-header")
     except ValueError:
-        pattern = None
+        pass
     else:
         del sys.argv[i]
-        pattern = sys.argv[i]
-        del sys.argv[i]
+        d_args["pattern"] = sys.argv.pop(i)
 
     *c_args, file = sys.argv[1:]
-    args = ["tmp.h", c_args, [("tmp.h", sys.stdin)]] if file == "-" else [file, c_args]
-    yml = h2yaml(*args, pattern=pattern)
+    if file != "-":
+        d_args["path"] = file
+        d_args["clang_args"] = c_args
+    else:
+        d_args["path"] = "tmp.h"
+        d_args["unsaved_files"] = [("tmp.h", sys.stdin)]
+
+    yml = h2yaml(**d_args)
     print(yml, end="")
 
 
