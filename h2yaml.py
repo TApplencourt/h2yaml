@@ -1,17 +1,20 @@
-import sys
 from functools import cache, wraps
+from typing import Callable
+import sys
 import clang.cindex
 import yaml
-try:
-    import type_enforced
-except ModuleNotFoundError:
-    class type_enforced:
-        def Enforcer(f):
-            return f
 import os
 import subprocess
 import re
-from typing import Generator, Callable
+from typing import Callable
+
+try:
+    import type_enforced
+except ModuleNotFoundError:
+
+    class type_enforced:
+        def Enforcer(f: Callable):
+            return f
 
 
 class classproperty(property):

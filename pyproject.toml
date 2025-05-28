@@ -10,13 +10,14 @@ dependencies = [
 [project.scripts]
 h2yaml = "h2yaml:main"
 
-[project.optional-dependencies]
+[tool.setuptools]
+py-modules = ["h2yaml"]
+
+[dependency-groups]
 test = [
-  "type_enforced",
   "pytest",
   "pytest-icdiff",
   "coverage"
 ]
-
-[tool.setuptools]
-py-modules = ["h2yaml"]
+typing = ["type_enforced"]
+typing-test = [{include-group = "typing"}, {include-group = "test"}]

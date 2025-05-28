@@ -14,6 +14,11 @@ jobs:
         python-version:
           - "3.10"
           - "3.12"
+        dependency-group:
+          - "typing-test"
+        include:
+            - python-version: "3.12"
+            - dependency-group: "test"
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +28,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install the project
-        run: uv sync --all-extras --dev
+        run: uv sync --group ${{ matrix.dependency-group }}
 
       - name: Run tests
         run: |
