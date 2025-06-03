@@ -116,9 +116,17 @@ typedefs:
         name: int
 - name: c_t
   type:
+    kind: pointer
+    type:
+      kind: function
+      type:
+        kind: int
+        name: int
+- name: d_t
+  type:
     kind: int
     name: int
-- name: d_t
+- name: e_t
   type:
     kind: pointer
     type:
@@ -130,8 +138,8 @@ typedefs:
           name: int
       type:
         kind: custom_type
-        name: c_t
-- name: e_t
+        name: d_t
+- name: f_t
   type:
     kind: function
     params:

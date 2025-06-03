@@ -230,6 +230,13 @@ def parse_function_proto_type(t: clang.cindex.Type, cursors: Callable):
 
 
 @type_enforced.Enforcer
+def parse_function_noproto_type(t: clang.cindex.Type, cursors: Callable):
+    return {
+        "type": parse_type(t.get_result(), cursors),
+    }
+
+
+@type_enforced.Enforcer
 def parse_type(t: clang.cindex.Type, cursors: Callable):
     d_qualified = {}
     if t.is_const_qualified():
@@ -271,6 +278,8 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
             } | d_qualified
         case clang.cindex.TypeKind.FUNCTIONPROTO:
             return {"kind": "function"} | parse_function_proto_type(t, cursors)
+        case clang.cindex.TypeKind.FUNCTIONNOPROTO:
+            return {"kind": "function"} | parse_function_noproto_type(t, cursors)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_type: {k}")
 
@@ -358,7 +367,7 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
                 c,
                 f"`{c.spelling}` defines a function with no parameters, consider specifying `void`.",
             )
-            d["type"] = parse_type(c.type.get_result(), cursors)
+            d |= parse_function_noproto_type(c.type, cursors)
         case clang.cindex.TypeKind.FUNCTIONPROTO:
             d |= parse_function_proto_type(c.type, cursors)
         case _:  # pragma: no cover
