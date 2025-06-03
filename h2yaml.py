@@ -489,10 +489,9 @@ def main():  # pragma: no cover
         del sys.argv[i]
         d_args["pattern"] = sys.argv.pop(i)
 
-    *c_args, file = sys.argv[1:]
+    *d_args["clang_args"], file = sys.argv[1:]
     if file != "-":
         d_args["path"] = file
-        d_args["clang_args"] = c_args
     else:
         d_args["path"] = "tmp.h"
         d_args["unsaved_files"] = [("tmp.h", sys.stdin)]
