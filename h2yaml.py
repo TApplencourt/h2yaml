@@ -149,12 +149,20 @@ def is_anonymous2(self):
             return self.is_anonymous()
 
 
-clang.cindex.Cursor.is_anonymous2 = is_anonymous2
-
-
 def is_inline_specifier(self):
     assert self.kind == clang.cindex.CursorKind.FUNCTION_DECL
     return any(token.spelling == "inline" for token in self.get_tokens())
+
+
+def is_forward_declaration(self):
+    # Workaround for a libclang quirk:
+    # Typedefs referring to forward-declared structs may appear as if they point to the final definition.
+    # As a fallback, we check if this typedef was already seen earlier in the parsing phase.
+    if self.kind == clang.cindex.CursorKind.TYPEDEF_DECL:
+        return any(self.spelling == d["name"] for d in DECLARATIONS["typedefs"])
+
+    # https://web.archive.org/web/20210511125654/https://joshpeterson.github.io/identifying-a-forward-declaration-with-libclang
+    return self.get_definition() != self
 
 
 def get_interesting_children(self):
@@ -163,7 +171,9 @@ def get_interesting_children(self):
             yield c
 
 
+clang.cindex.Cursor.is_anonymous2 = is_anonymous2
 clang.cindex.Cursor.is_inline_specifier = is_inline_specifier
+clang.cindex.Cursor.is_forward_declaration = is_forward_declaration
 clang.cindex.Cursor.get_interesting_children = get_interesting_children
 
 
@@ -315,6 +325,8 @@ def parse_decl(c: clang.cindex.Cursor, cursors: Callable | None = None):
 @cache_using_first_arg
 @type_enforced.Enforcer
 def parse_typedef_decl(c: clang.cindex.Cursor, cursors: Callable):
+    if c.is_forward_declaration():
+        return {}
     d_name = {"name": c.spelling}
     # Only call `underlying_typedef_type` if we are interested by the header
     if c.location.is_in_interesting_header:
@@ -386,6 +398,9 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
 # so we cache to avoid appending twice to DECLARATIONS['structs']
 @type_enforced.Enforcer
 def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
+    if c.is_forward_declaration():
+        return {}
+
     def parse_field_decl(c: clang.cindex.Cursor):
         assert c.kind == clang.cindex.CursorKind.FIELD_DECL
         d = {"type": parse_type(c.type, c.get_interesting_children())}
@@ -395,8 +410,6 @@ def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
             return d
         return {"name": c.spelling} | d
 
-    # typedef struct A8 a8 is a valid c syntax;
-    # But we should not append it to `structs` as it's undefined
     d_name = {"name": c.spelling}
     fields = (f for f in c.type.get_fields() if f.location.is_in_interesting_header)
     if not (members := [parse_field_decl(f) for f in fields]):

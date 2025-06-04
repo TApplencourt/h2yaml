@@ -42,6 +42,9 @@ struct A7 {
 };
 
 typedef struct A8 a8;
+typedef struct A8 {
+  int x;
+} a8;
 
 typedef struct {
   int a;
@@ -50,3 +53,8 @@ typedef struct {
 typedef struct A10 {
   int a;
 } *A10_0_t, A10_1_t;
+
+struct A11;
+struct A11 {
+  int a;
+};
