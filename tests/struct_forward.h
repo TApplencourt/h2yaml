@@ -1,2 +1,2 @@
-typedef struct A12 A12_t;
-struct A13;
+struct A12;
+typedef struct A13 A13_t;

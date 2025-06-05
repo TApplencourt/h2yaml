@@ -4,7 +4,7 @@ declarations:
     kind: struct
     name: A0
     volatile: true
-- name: a
+- name: a1
   type:
     kind: struct
     name: A1
@@ -14,7 +14,7 @@ structs:
     type:
       kind: int
       name: int
-  name: A12
+  name: A13
 - members:
   - name: x
     type:
@@ -28,7 +28,7 @@ structs:
       name: int
   name: A1
 - members:
-  - name: a
+  - name: b2
     type:
       kind: struct
       members:
@@ -51,12 +51,12 @@ structs:
     type:
       kind: int
       name: int
-  name: B1
+  name: B4
 - members:
-  - name: a4
+  - name: b4
     type:
       kind: struct
-      name: B1
+      name: B4
   name: A4
 - members:
   - name: x
@@ -65,29 +65,17 @@ structs:
       name: int
   name: B5
 - members:
-  - name: b
-    type:
-      kind: struct
-      name: B5
-  name: A5
-- members:
-  - name: x
-    type:
-      kind: int
-      name: int
-  name: B6
-- members:
-  - name: a6
+  - name: u
     type:
       kind: union
       members:
-      - name: b
+      - name: b5
         type:
           kind: struct
-          name: B6
-  name: A6
+          name: B5
+  name: A5
 - members:
-  - name: b1
+  - name: x1
     num_bits: 5
     type:
       kind: int
@@ -96,17 +84,17 @@ structs:
     type:
       kind: int
       name: unsigned int
-  - name: b2
+  - name: x2
     num_bits: 6
     type:
       kind: int
       name: unsigned int
-  - name: b3
+  - name: x3
     num_bits: 15
     type:
       kind: int
       name: unsigned int
-  name: A7
+  name: A6
 - members:
   - name: x
     type:
@@ -114,13 +102,25 @@ structs:
       name: int
   name: A8
 - members:
-  - name: a
+  - name: x
+    type:
+      kind: int
+      name: int
+  name: B9
+- members:
+  - name: b9
+    type:
+      kind: struct
+      name: B9
+  name: A9
+- members:
+  - name: x
     type:
       kind: int
       name: int
   name: A10
 - members:
-  - name: a
+  - name: x
     type:
       kind: int
       name: int
@@ -130,35 +130,35 @@ structs:
     type:
       kind: int
       name: int
-  name: A13
+  name: A12
 typedefs:
-- name: A12_t
+- name: A13_t
   type:
     kind: struct
-    name: A12
-- name: A5_t
+    name: A13
+- name: A7_t
   type:
     kind: struct
-    name: A5
-- name: A8_t
+    members:
+    - name: x
+      type:
+        kind: int
+        name: int
+- name: A8_0_t
+  type:
+    kind: pointer
+    type:
+      kind: struct
+      name: A8
+- name: A8_1_t
   type:
     kind: struct
     name: A8
 - name: A9_t
   type:
     kind: struct
-    members:
-    - name: a
-      type:
-        kind: int
-        name: int
-- name: A10_0_t
-  type:
-    kind: pointer
-    type:
-      kind: struct
-      name: A10
-- name: A10_1_t
+    name: A9
+- name: A11_t
   type:
     kind: struct
-    name: A10
+    name: A11

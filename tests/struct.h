@@ -8,65 +8,73 @@ volatile struct A0 A0_v;
 
 struct A1 {
   int x;
-} a;
+} a1;
+
 struct A2 {
   struct {
     int x;
-  } a;
+  } b2;
 };
+
 struct A3 {
   struct {
     int x;
   };
 };
+
 struct A4 {
-  struct B1 {
+  struct B4 {
     int x;
-  } a4;
+  } b4;
 };
-typedef struct A5 {
-  struct B5 {
-    int x;
-  } b;
-} A5_t;
+
+struct A5 {
+  union {
+    struct B5 {
+      int x;
+    } b5;
+  } u;
+};
 
 struct A6 {
-  union {
-    struct B6 {
-      int x;
-    } b;
-  } a6;
-};
-struct A7 {
-  unsigned b1 : 5;
+  unsigned x1 : 5;
   unsigned : 0;
-  unsigned b2 : 6;
-  unsigned b3 : 15;
+  unsigned x2 : 6;
+  unsigned x3 : 15;
 };
 
-typedef struct A8 A8_t;
-typedef struct A8 {
-  int x;
-} A8_t;
+// Typedef
 
 typedef struct {
-  int a;
+  int x;
+} A7_t;
+
+typedef struct A8 {
+  int x;
+} *A8_0_t, A8_1_t;
+
+typedef struct A9 {
+  struct B9 {
+    int x;
+  } b9;
 } A9_t;
 
-typedef struct A10 {
-  int a;
-} *A10_0_t, A10_1_t;
-
-struct A11;
-struct A11 {
-  int a;
-};
-
-// Included by struct_forward.h
-typedef struct A12 {
+// Forward  Declaration
+struct A10;
+struct A10 {
   int x;
-} A12_t;
+};
 
-struct A13 {
+typedef struct A11 A11_t;
+typedef struct A11 {
+  int x;
+} A11_t;
+
+// Including Forward Declaration header
+struct A12 {
   int a;
 };
+
+typedef struct A13 {
+  int x;
+} A13_t;
