@@ -1,8 +1,10 @@
+#include "struct_forward.h"
+
 struct A0 {
   int x;
 };
 
-volatile struct A0 Av;
+volatile struct A0 A0_v;
 
 struct A1 {
   int x;
@@ -26,7 +28,8 @@ typedef struct A5 {
   struct B5 {
     int x;
   } b;
-} a5;
+} A5_t;
+
 struct A6 {
   union {
     struct B6 {
@@ -41,10 +44,10 @@ struct A7 {
   unsigned b3 : 15;
 };
 
-typedef struct A8 a8;
+typedef struct A8 A8_t;
 typedef struct A8 {
   int x;
-} a8;
+} A8_t;
 
 typedef struct {
   int a;
@@ -56,5 +59,14 @@ typedef struct A10 {
 
 struct A11;
 struct A11 {
+  int a;
+};
+
+// Included by struct_forward.h
+typedef struct A12 {
+  int x;
+} A12_t;
+
+struct A13 {
   int a;
 };

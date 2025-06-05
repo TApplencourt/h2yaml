@@ -1,5 +1,5 @@
 declarations:
-- name: Av
+- name: A0_v
   type:
     kind: struct
     name: A0
@@ -9,6 +9,12 @@ declarations:
     kind: struct
     name: A1
 structs:
+- members:
+  - name: x
+    type:
+      kind: int
+      name: int
+  name: A12
 - members:
   - name: x
     type:
@@ -119,12 +125,22 @@ structs:
       kind: int
       name: int
   name: A11
+- members:
+  - name: a
+    type:
+      kind: int
+      name: int
+  name: A13
 typedefs:
-- name: a5
+- name: A12_t
+  type:
+    kind: struct
+    name: A12
+- name: A5_t
   type:
     kind: struct
     name: A5
-- name: a8
+- name: A8_t
   type:
     kind: struct
     name: A8
