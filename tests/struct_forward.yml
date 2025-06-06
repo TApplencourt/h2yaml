@@ -1,0 +1,4 @@
+typedefs:
+- name: A13_t
+  type:
+    kind: struct

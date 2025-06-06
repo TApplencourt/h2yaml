@@ -161,8 +161,9 @@ def is_forward_declaration(self):
     if self.kind == clang.cindex.CursorKind.TYPEDEF_DECL:
         return any(self.spelling == d["name"] for d in DECLARATIONS["typedefs"])
 
-    # https://web.archive.org/web/20210511125654/https://joshpeterson.github.io/identifying-a-forward-declaration-with-libclang
-    return self.get_definition() != self
+    # https://joshpeterson.github.io/blog/2017/identifying-a-forward-declaration-with-libclang/
+    # Need two tests, as cursors cannot be compared to None
+    return self.get_definition() is None or self.get_definition() != self
 
 
 def get_interesting_children(self):
