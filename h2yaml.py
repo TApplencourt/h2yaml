@@ -326,11 +326,9 @@ def parse_decl(c: clang.cindex.Cursor, cursors: Callable | None = None):
 @cache_using_first_arg
 @type_enforced.Enforcer
 def parse_typedef_decl(c: clang.cindex.Cursor, cursors: Callable):
-    if c.is_forward_declaration():
-        return {}
     d_name = {"name": c.spelling}
     # Only call `underlying_typedef_type` if we are interested by the header
-    if c.location.is_in_interesting_header:
+    if not (c.is_forward_declaration()) and c.location.is_in_interesting_header:
         d_type = {"type": parse_type(c.underlying_typedef_type, cursors)}
         DECLARATIONS["typedefs"].append(d_name | d_type)
     return d_name
@@ -399,9 +397,6 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
 # so we cache to avoid appending twice to DECLARATIONS['structs']
 @type_enforced.Enforcer
 def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
-    if c.is_forward_declaration():
-        return {}
-
     def parse_field_decl(c: clang.cindex.Cursor):
         assert c.kind == clang.cindex.CursorKind.FIELD_DECL
         d = {"type": parse_type(c.type, c.get_interesting_children())}
@@ -412,6 +407,9 @@ def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
         return {"name": c.spelling} | d
 
     d_name = {"name": c.spelling}
+    if c.is_forward_declaration():
+        return d_name
+
     fields = (f for f in c.type.get_fields() if f.location.is_in_interesting_header)
     if not (members := [parse_field_decl(f) for f in fields]):
         return d_name

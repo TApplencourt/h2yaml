@@ -2,3 +2,4 @@ typedefs:
 - name: A13_t
   type:
     kind: struct
+    name: A13

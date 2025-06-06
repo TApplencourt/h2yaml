@@ -85,6 +85,17 @@ functions:
   type:
     kind: void
     name: void
+- name: f11
+  params:
+  - name: a
+    type:
+      kind: pointer
+      type:
+        kind: custom_type
+        name: f11_t
+  type:
+    kind: void
+    name: void
 structs:
 - members:
   - name: i
@@ -92,6 +103,12 @@ structs:
       kind: int
       name: int
   name: a
+- members:
+  - name: a
+    type:
+      kind: int
+      name: int
+  name: f11_s
 typedefs:
 - name: a_t
   type:
@@ -150,3 +167,7 @@ typedefs:
       kind: void
       name: void
     var_args: true
+- name: f11_t
+  type:
+    kind: struct
+    name: f11_s

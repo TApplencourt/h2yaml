@@ -30,3 +30,7 @@ __attribute__((deprecated("foo"))) size_t f8(size_t size
 static inline void f9(void);
 
 void f10(void) {}
+
+typedef struct f11_s f11_t;
+typedef struct f11_s { int a;} f11_t;
+void f11(f11_t* a);
