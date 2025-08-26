@@ -1,3 +1,11 @@
+# /// script
+# requires-python = ">= 3.10"
+# dependencies = [
+#  "pyyaml",
+#  "libclang",
+# ]
+# ///
+
 from functools import cache, cached_property, wraps
 from typing import Callable
 import sys

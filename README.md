@@ -18,6 +18,15 @@ Based on `libclang` and their python binding (https://libclang.readthedocs.io/en
 ```
 
 ## Installation
+
+The quiskest way to get started is to do:
+```
+git clone https://github.com/TApplencourt/h2yaml.git
+cd h2yaml
+uv run h2yaml.py
+```
+
+For system wide install do:
 ```
 git clone https://github.com/TApplencourt/h2yaml.git
 cd h2yaml
@@ -31,7 +40,7 @@ Require python `>=3.10`; one cannot write a Parser without Pattern Matching.
 ```
 h2yaml path/to/your/header.h
 ```
-Can also read from `stdin`.
+Can also read from `stdin`, using `-` as argument. See example.
 
 ## Format
 
