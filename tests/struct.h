@@ -78,3 +78,8 @@ struct A12 {
 typedef struct A13 {
   int x;
 } A13_t;
+
+// Recursive
+struct A14 {
+  struct A14 *next;
+};

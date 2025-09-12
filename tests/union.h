@@ -9,3 +9,9 @@ union B_t {
     int B0;
   } B_s;
 };
+
+union C {
+    struct {
+        union C *ptr;
+    } C_s;
+};

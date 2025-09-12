@@ -20,6 +20,18 @@ unions:
         type:
           kind: int
           name: int
+- name: C
+  members:
+  - name: C_s
+    type:
+      kind: struct
+      members:
+      - name: ptr
+        type:
+          kind: pointer
+          type:
+            kind: union
+            name: C
 functions:
 - name: foo
   type:

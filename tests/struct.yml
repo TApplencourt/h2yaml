@@ -131,6 +131,14 @@ structs:
       kind: int
       name: int
   name: A12
+- name: A14
+  members:
+  - name: next
+    type:
+      kind: pointer
+      type:
+        kind: struct
+        name: A14
 typedefs:
 - name: A13_t
   type:

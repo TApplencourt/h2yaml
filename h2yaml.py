@@ -7,6 +7,7 @@
 # ///
 
 from functools import cache, cached_property, wraps
+from collections import deque
 from typing import Callable
 import sys
 import clang.cindex
@@ -403,8 +404,13 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
 # - One for typedef `TYPEDEF_DECL.underlying_typedef_type`
 # - and one for `STRUCT_DECL`
 # so we cache to avoid appending twice to DECLARATIONS['structs']
+# We also take special care of self referential data-structure
+
+
 @type_enforced.Enforcer
 def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
+    # Note: This function uses the global variable CACHE_STRUCT_UNION_DECL_REC.
+
     def parse_field_decl(c: clang.cindex.Cursor):
         assert c.kind == clang.cindex.CursorKind.FIELD_DECL
         d = {"type": parse_type(c.type, c.get_interesting_children())}
@@ -415,12 +421,25 @@ def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
         return {"name": c.spelling} | d
 
     d_name = {"name": c.spelling}
+    # Self referential data-type
+    if c in CACHE_STRUCT_UNION_DECL_REC:
+        return d_name
+
     if c.is_forward_declaration():
         return d_name
 
     fields = (f for f in c.type.get_fields() if f.location.is_in_interesting_header)
-    if not (members := [parse_field_decl(f) for f in fields]):
+
+    # Handle possible self-referential data-structure
+    CACHE_STRUCT_UNION_DECL_REC.append(c)
+
+    members = [parse_field_decl(f) for f in fields]
+
+    CACHE_STRUCT_UNION_DECL_REC.pop()
+
+    if not members:
         return d_name
+
     d_members = {"members": members}
     # Hoisting
     if c.is_anonymous2():
@@ -473,6 +492,12 @@ def parse_translation_unit(t: clang.cindex.Cursor, pattern):
         k: []
         for k in ("structs", "unions", "typedefs", "declarations", "functions", "enums")
     }
+
+    # Struct and Union can be self-referential,
+    # so we need to track them to avoid recursion problem
+    global CACHE_STRUCT_UNION_DECL_REC
+    CACHE_STRUCT_UNION_DECL_REC = deque()
+
     # PATTERN_INTERESTING_HEADER is used in `is_in_interesting_header`
     # to filter out list of header to parse
     global PATTERN_INTERESTING_HEADER
@@ -482,6 +507,8 @@ def parse_translation_unit(t: clang.cindex.Cursor, pattern):
     for c in user_children:
         # Warning: will modify `DECLARATIONS` global variable
         parse_decl(c, c.get_interesting_children())
+
+    assert len(CACHE_STRUCT_UNION_DECL_REC) == 0
     return {k: v for k, v in DECLARATIONS.items() if v}
 
 
