@@ -542,7 +542,7 @@ def h2yaml(
     return yaml.dump(decls)
 
 
-def parse_args2(argv=None):
+def parse_args(argv=None):  # pragma: no cover
     parser = argparse.ArgumentParser(
         usage=f"USAGE: {sys.argv[0]} [clang_args...] "
         "[--filter-header REGEX] [--canonicalization] [ file | - ]"
@@ -579,11 +579,7 @@ def parse_args2(argv=None):
     return args
 
 
-def main():  # pragma: no cover
-    args = parse_args2()
+if __name__ == "__main__":  # pragma: no cover
+    args = parse_args()
     yml = h2yaml(**vars(args))
     print(yml, end="")
-
-
-if __name__ == "__main__":  # pragma: no cover
-    main()
