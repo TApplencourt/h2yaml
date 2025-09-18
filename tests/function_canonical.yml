@@ -1,7 +1,8 @@
 functions:
 - name: f0
   params:
-  - type:
+  - name: _arg0
+    type:
       kind: int
       name: int
   type:
@@ -58,7 +59,8 @@ functions:
     name: int
 - name: f6
   params:
-  - type:
+  - name: _arg0
+    type:
       kind: int
       name: int
   type:
@@ -116,7 +118,8 @@ typedefs:
     type:
       kind: function
       params:
-      - type:
+      - name: _arg0
+        type:
           kind: int
           name: int
       type:
@@ -173,7 +176,8 @@ typedefs:
   type:
     kind: function
     params:
-    - type:
+    - name: _arg0
+      type:
         kind: int
         name: int
     type:

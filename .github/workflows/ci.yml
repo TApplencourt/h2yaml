@@ -5,7 +5,9 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
+  schedule:
+    # At 00:00 on Sunday
+    - cron: "0 0 * * 0"
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -43,7 +45,12 @@ jobs:
       - run: h2yaml --help
       - run: CC=gcc h2yaml ./tests/header_filter/foo.h --filter-header foo.h
       - run: echo "int a;" | h2yaml -
-
+  test-PEP-723:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: echo "int a;" | uv run python ./h2yaml.py -
   lint:
     runs-on: ubuntu-latest
     steps:
