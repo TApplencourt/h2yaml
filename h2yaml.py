@@ -15,6 +15,7 @@ import yaml
 import os
 import subprocess
 import re
+import argparse
 
 try:
     import type_enforced
@@ -539,9 +540,6 @@ def h2yaml(
     check_diagnostic(translation_unit)
     decls = parse_translation_unit(translation_unit.cursor, pattern, canonicalization)
     return yaml.dump(decls)
-
-
-import argparse
 
 
 def parse_args2(argv=None):
