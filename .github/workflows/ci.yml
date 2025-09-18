@@ -5,7 +5,9 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
+  schedule:
+    # At 00:00 on Sunday
+    - cron: "0 0 * * 0"
 jobs:
   test:
     runs-on: ubuntu-latest
