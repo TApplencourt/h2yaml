@@ -232,16 +232,25 @@ THAPI_types = {
 @type_enforced.Enforcer
 def parse_function_proto_type(t: clang.cindex.Type, cursors: Callable):
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
-    def parse_parm_type(t: clang.cindex.Type, cursors: Callable):
+    def parse_parm_type(i, t: clang.cindex.Type, cursors: Callable):
         c = next_non_attribute(cursors)
         d_type = {"type": parse_type(t, c.get_interesting_children())}
-        if c.is_anonymous2():
-            return d_type
-        return {"name": c.spelling} | d_type
+
+        match (c.is_anonymous2(), CANONICALIZATION):
+            case (True, False):
+                return d_type
+            case (True, True):
+                return {"name": f"_arg{i}"} | d_type
+            case (False, _):
+                return {"name": c.spelling} | d_type
+            case _:  # pragma: no cover
+                raise NotImplementedError(f"parse_parm_type: {t}")
 
     d = {
         "type": parse_type(t.get_result(), cursors),
-        "params": [parse_parm_type(t_, cursors) for t_ in t.argument_types()],
+        "params": [
+            parse_parm_type(i, _t, cursors) for i, _t in enumerate(t.argument_types())
+        ],
     }
 
     if t.is_function_variadic():
@@ -483,7 +492,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 #    | ._ _. ._   _ |  _. _|_ o  _  ._    | | ._  o _|_
 #    | | (_| | | _> | (_|  |_ | (_) | |   |_| | | |  |_
 #
-def parse_translation_unit(t: clang.cindex.Cursor, pattern):
+def parse_translation_unit(t: clang.cindex.Cursor, pattern, canonicalization):
     assert t.kind == clang.cindex.CursorKind.TRANSLATION_UNIT
 
     # We need to set some global variable
@@ -503,6 +512,10 @@ def parse_translation_unit(t: clang.cindex.Cursor, pattern):
     global PATTERN_INTERESTING_HEADER
     PATTERN_INTERESTING_HEADER = pattern
 
+    # CANONICALIZATION is cheked to set name if anonnymous
+    global CANONICALIZATION
+    CANONICALIZATION = canonicalization
+
     user_children = (c for c in t.get_children() if c.location.is_in_interesting_header)
     for c in user_children:
         # Warning: will modify `DECLARATIONS` global variable
@@ -516,43 +529,61 @@ def parse_translation_unit(t: clang.cindex.Cursor, pattern):
 #   |\/|  _. o ._
 #   |  | (_| | | |
 #
-def h2yaml(path, *, clang_args=[], unsaved_files=None, pattern=".*"):
+def h2yaml(
+    file, *, clang_args=[], unsaved_files=None, pattern=".*", canonicalization=False
+):
     system_args = [f"-I{p}" for p in SystemIncludes.paths]
     translation_unit = clang.cindex.Index.create().parse(
-        path, args=clang_args + system_args, unsaved_files=unsaved_files
+        file, args=clang_args + system_args, unsaved_files=unsaved_files
     )
     check_diagnostic(translation_unit)
-    decls = parse_translation_unit(translation_unit.cursor, pattern)
+    decls = parse_translation_unit(translation_unit.cursor, pattern, canonicalization)
     return yaml.dump(decls)
 
 
+import argparse
+
+
+def parse_args2(argv=None):
+    parser = argparse.ArgumentParser(
+        usage=f"USAGE: {sys.argv[0]} [clang_args...] "
+        "[--filter-header REGEX] [--canonicalization] [ file | - ]"
+    )
+
+    parser.add_argument(
+        "--filter-header",
+        dest="pattern",
+        default=".*",
+        metavar="REGEX",
+        help="Only process headers matching the regex (default: .*).",
+    )
+    parser.add_argument(
+        "-c",
+        "--canonicalization",
+        action="store_true",
+        help="Assign names to anonymous arguments.",
+    )
+    parser.add_argument(
+        "file",
+        nargs="?",
+        default="-",
+        help="Path offile to process, or '-' to read from stdin.",
+    )
+
+    # Parse only known args, leave clang options aside
+    args, clang_args = parser.parse_known_args(argv)
+    args.clang_args = clang_args
+
+    if args.file == "-":
+        args.file = "tmp.h"
+        args.unsaved_files = [("tmp.h", sys.stdin)]
+
+    return args
+
+
 def main():  # pragma: no cover
-    if (error := len(sys.argv) == 1) or sys.argv[1] == "--help":
-        # TODO: `--filter-header` default value should be `file`
-        print(
-            f"USAGE: {sys.argv[0]} [clang_option...] [--filter-header REGEX] [ file | - ]"
-        )
-        if error:
-            sys.exit(1)
-        return
-
-    d_args = {}
-    try:
-        i = sys.argv.index("--filter-header")
-    except ValueError:
-        pass
-    else:
-        del sys.argv[i]
-        d_args["pattern"] = sys.argv.pop(i)
-
-    *d_args["clang_args"], file = sys.argv[1:]
-    if file != "-":
-        d_args["path"] = file
-    else:
-        d_args["path"] = "tmp.h"
-        d_args["unsaved_files"] = [("tmp.h", sys.stdin)]
-
-    yml = h2yaml(**d_args)
+    args = parse_args2()
+    yml = h2yaml(**vars(args))
     print(yml, end="")
 
 

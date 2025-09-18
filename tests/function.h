@@ -8,7 +8,9 @@ struct a {
 };
 struct a f3(const struct a x[]);
 
-typedef int (*a_t)(int);
+typedef int (*a0_t)(int);
+typedef int (*a1_t)(int a);
+
 typedef int (*b_t)(void);
 typedef int (*c_t)();
 
