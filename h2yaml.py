@@ -7,6 +7,7 @@
 # ///
 
 from functools import cache, cached_property, wraps
+from types import SimpleNamespace
 from collections import deque
 from typing import Callable
 import sys
@@ -561,20 +562,27 @@ def parse_args(argv=None):  # pragma: no cover
         action="store_true",
         help="Assign names to anonymous arguments.",
     )
-    parser.add_argument(
-        "file",
-        nargs="?",
-        default="-",
-        help="Path offile to process, or '-' to read from stdin.",
-    )
 
-    # Parse only known args, leave clang options aside
-    args, clang_args = parser.parse_known_args(argv)
-    args.clang_args = clang_args
+    # Handle `-`, and `--` by hand
+    # `parse` is gready and in case of `-I ./foo bar.h`,
+    #   file wll be `./foo` and not `./bars`
+    args = SimpleNamespace()
+    match sys.argv:
+        case [_, "-h" | "--help"]:
+            parser.print_help()
+            exit()
+        case [_, *reminder, "-"]:
+            args.file = "tmp.h"
+            args.unsaved_files = [("tmp.h", sys.stdin)]
+        case [_, *reminder, "--", file_]:
+            args.file = file_
+        case [_, *reminder, file_]:
+            args.file = file_
+        case _:
+            parser.print_help()
+            exit()
 
-    if args.file == "-":
-        args.file = "tmp.h"
-        args.unsaved_files = [("tmp.h", sys.stdin)]
+    _, args.clang_args = parser.parse_known_args(reminder, namespace=args)
 
     return args
 
