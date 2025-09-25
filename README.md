@@ -1,7 +1,7 @@
 # h2yaml
 
 Transform your C header file (`.h`) into YAML.
-Based on `libclang` and their python binding (https://libclang.readthedocs.io/en/latest/index.html#).
+Based on `libclang` and their [python binding](https://libclang.readthedocs.io/en/latest/index.html#).
 
 ```
      ___      I will parse
@@ -19,7 +19,7 @@ Based on `libclang` and their python binding (https://libclang.readthedocs.io/en
 
 ## Installation
 
-The quiskest way to get started is to do:
+The quiskest way to get started is:
 ```
 git clone https://github.com/TApplencourt/h2yaml.git
 cd h2yaml
@@ -34,13 +34,28 @@ pip install .
 ```
 
 For developpent please use `pip install .[test]`.
-Require python `>=3.10`; one cannot write a Parser without Pattern Matching.
+Require python `>=3.11`; one cannot write a Parser without Pattern Matching.
 
 ## Usage
+
 ```
 h2yaml path/to/your/header.h
 ```
-Can also read from `stdin`, using `-` as argument. See example.
+You can also read from `stdin` by passing `-` as the file argument:
+```
+cat header.h | h2yaml -Wc,-xc -
+```
+
+### Passing arguments to clang
+
+If you need to forward options directly to clang (for example, include paths or warning flags),
+we follow the same convention used by GCC when passing options to the linker using [`-Wl`](https://sourceware.org/binutils/docs/ld/Options.html).
+
+In `h2yaml`, we use the `-Wc` prefix to forward option to clang (we also support `-Wc,--startgroup` and `-Wc,--endgroup` to pass multiples options).
+
+```
+h2yaml -Wc,-I./include/ path/to/your/header.h
+```
 
 ## Format
 
@@ -48,7 +63,7 @@ The YAML will consist of 6 declarations sections: `structs,` `unions,` `typedefs
 Each declaration will contain a name, a type, and potentially a list of members.
 
 ## Example:
-```
+```bash
 echo "struct a {
   int i;
   union {
