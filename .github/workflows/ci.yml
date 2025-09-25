@@ -43,9 +43,9 @@ jobs:
           source .venv/bin/activate
           pip install .
       - run: h2yaml --help
-      - run: CC=gcc h2yaml -Wc,-I./tests/header_filter/ --filter-header foo.h -- ./tests/header_filter/foo.h
-      - run: echo "int a;" | h2yaml -Wc,-xc -
       - run: h2yaml --version
+      - run: CC=gcc h2yaml ./tests/function.h
+      - run: echo "int a;" | h2yaml -Wc,-xc -
 
   test-PEP-723:
     runs-on: ubuntu-latest
