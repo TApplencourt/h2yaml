@@ -14,12 +14,12 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - "3.10"
-          - "3.12"
+          - "3.11"
+          - "3.13"
         dependency-group:
           - "typing-test"
         include:
-            - python-version: "3.12"
+            - python-version: "3.13"
             - dependency-group: "test"
     steps:
       - uses: actions/checkout@v4
@@ -43,14 +43,16 @@ jobs:
           source .venv/bin/activate
           pip install .
       - run: h2yaml --help
-      - run: CC=gcc h2yaml -I ./tests/header_filter/ --filter-header foo.h -- ./tests/header_filter/foo.h
-      - run: echo "int a;" | h2yaml -
+      - run: CC=gcc h2yaml -Wc,-I./tests/header_filter/ --filter-header foo.h -- ./tests/header_filter/foo.h
+      - run: echo "int a;" | h2yaml -Wc,-xc -
+      - run: h2yaml --version
+
   test-PEP-723:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: echo "int a;" | uv run python ./h2yaml.py -
+      - run: echo "int a;" | uv run python ./h2yaml.py -Wc,-xc -
   lint:
     runs-on: ubuntu-latest
     steps:
