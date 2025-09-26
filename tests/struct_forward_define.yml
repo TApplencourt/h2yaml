@@ -1,0 +1,5 @@
+typedefs:
+- name: A13d_t
+  type:
+    kind: struct
+    name: A13d
