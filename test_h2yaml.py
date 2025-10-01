@@ -67,6 +67,12 @@ def test_canonicalization():
 
 def test_main_version():
     with pytest.raises(SystemExit) as e:
+        h2yaml.main(["-Wc,-DTEST_DEFINE=12", "./tests/struct_forward.h"])
+    assert e.value.code == 1
+
+
+def test_main_versiom():
+    with pytest.raises(SystemExit) as e:
         h2yaml.main(["--version"])
     assert e.value.code == 0
 
@@ -77,12 +83,16 @@ def test_main_arguments_and_grouping(capsys):
     with open(f"{filename}_define.yml", "r") as f:
         ref_yml = yaml.safe_load(f)
 
-    yml0 = run_main_and_get_yaml(capsys, ["-Wc,-DTEST_DEFINE", f"{filename}.h"])
-    yml1 = run_main_and_get_yaml(
-        capsys, ["-Wc,--startgroup", "-DTEST_DEFINE", "-Wc,--endgroup", f"{filename}.h"]
+    yml0 = yaml.safe_load(
+        h2yaml.h2yaml(f"{filename}.h", clang_args=["-DTEST_DEFINE=A13d"])
+    )
+    yml1 = run_main_and_get_yaml(capsys, ["-Wc,-DTEST_DEFINE=A13d", f"{filename}.h"])
+    yml2 = run_main_and_get_yaml(
+        capsys,
+        ["-Wc,--startgroup", "-DTEST_DEFINE=A13d", "-Wc,--endgroup", f"{filename}.h"],
     )
 
-    assert ref_yml == yml0 == yml1
+    assert ref_yml == yml0 == yml1 == yml2
 
 
 def test_main_arguments_stdin(capsys, mock_stdin_fd):

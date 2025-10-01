@@ -104,7 +104,7 @@ def check_diagnostic(t: clang.cindex.TranslationUnit):
         print(f"clang diagnostic: {diagnostic}", file=sys.stderr)
         # diagnostic message can contain "error" or "warning"
         error |= "error" in str(diagnostic)
-    if error:  # pragma: no cover # No negatif tests yet
+    if error:
         sys.exit(1)
 
 
