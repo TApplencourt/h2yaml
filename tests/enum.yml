@@ -24,7 +24,7 @@ enums:
   - name: C3
     val: 5
   name: C
-- members:
+- members: &id002
   - name: D0
     val: 0
 - members:
@@ -35,9 +35,21 @@ enums:
   - name: F0
     val: 10
   name: F
-- members:
+- members: &id001
   - name: H0
     val: 0
+functions:
+- name: foo
+  params:
+  - name: a
+    type:
+      kind: enum
+      members:
+      - name: H0
+        val: 0
+  type:
+    kind: void
+    name: void
 structs:
 - members:
   - name: bar
@@ -57,11 +69,13 @@ structs:
   - name: a
     type:
       kind: enum
+      members: *id001
   name: S2
 typedefs:
 - name: D_t
   type:
     kind: enum
+    members: *id002
 - name: E_t
   type:
     kind: enum

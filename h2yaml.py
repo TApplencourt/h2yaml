@@ -189,6 +189,14 @@ def is_forward_declaration(self):
     return self.get_definition() is None or self.get_definition() != self
 
 
+def is_in_function_decl(self):
+    if self.kind == clang.cindex.CursorKind.TRANSLATION_UNIT:
+        return False
+    if self.kind == clang.cindex.CursorKind.FUNCTION_DECL:
+        return True
+    return self.lexical_parent.is_in_function_decl()
+
+
 def get_interesting_children(self):
     for c in self.get_children():
         if self.location.is_in_interesting_header:
@@ -198,6 +206,7 @@ def get_interesting_children(self):
 clang.cindex.Cursor.is_anonymous2 = is_anonymous2
 clang.cindex.Cursor.is_inline_specifier = is_inline_specifier
 clang.cindex.Cursor.is_forward_declaration = is_forward_declaration
+clang.cindex.Cursor.is_in_function_decl = is_in_function_decl
 clang.cindex.Cursor.get_interesting_children = get_interesting_children
 
 
@@ -487,6 +496,8 @@ def parse_union_decl(c: clang.cindex.Cursor):
 #   |_ ._      ._ _    | \  _   _ |
 #   |_ | | |_| | | |   |_/ (/_ (_ |
 #
+
+
 @cache
 @type_enforced.Enforcer
 def parse_enum_decl(c: clang.cindex.Cursor):
@@ -498,7 +509,25 @@ def parse_enum_decl(c: clang.cindex.Cursor):
         "members": [parse_enum_constant_del(f) for f in c.get_interesting_children()]
     }
     d_name = {"name": c.spelling} if not c.is_anonymous2() else {}
-    DECLARATIONS["enums"].append(d_name | d_members)
+
+    # 6.2.1 Scopes of identifiers, of C language specification
+    # 404 If the declarator or type specifier that declares the identifier
+    #   appears outside of any block or list of parameters,
+    #   the identifier has file scope, which terminates at the end
+    #   of the translation unit.
+
+    # 405 If the declarator or type specifier that declares the identifier
+    #   appears inside a block or within the list of parameter declarations
+    #   in a function definition,
+    #   the identifier has block scope, which terminates at the end of the associated block.
+
+    if not c.is_in_function_decl():
+        DECLARATIONS["enums"].append(d_name | d_members)
+
+    # If it's anonymous we need to "inline" the header,
+    #   for instrospection purpose.
+    if c.is_anonymous2():
+        return d_name | d_members
     return d_name
 
 
@@ -531,6 +560,7 @@ def parse_translation_unit(t: clang.cindex.Cursor, pattern, canonicalization):
     CANONICALIZATION = canonicalization
 
     user_children = (c for c in t.get_children() if c.location.is_in_interesting_header)
+
     for c in user_children:
         # Warning: will modify `DECLARATIONS` global variable
         parse_decl(c, c.get_interesting_children())

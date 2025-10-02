@@ -20,3 +20,5 @@ typedef struct G {
 struct S2 {
   enum { H0 } a;
 };
+
+void foo( enum { H0 } a);
