@@ -21,4 +21,6 @@ struct S2 {
   enum { H0 } a;
 };
 
-void foo( enum { H0 } a);
+void foo1(enum {H0});
+
+void foo2(enum {H0});

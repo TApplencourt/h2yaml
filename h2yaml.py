@@ -189,12 +189,36 @@ def is_forward_declaration(self):
     return self.get_definition() is None or self.get_definition() != self
 
 
-def is_in_function_decl(self):
-    if self.kind == clang.cindex.CursorKind.TRANSLATION_UNIT:
-        return False
+@cache
+def find_cursors(cursor, kind):
+    """Recursively finds all cursors of a specific kind."""
+    found_cursors = set()
+    if cursor.kind == kind:
+        found_cursors.add(cursor)
+    for child in cursor.get_children():
+        found_cursors |= find_cursors(child, kind)
+    return found_cursors
+
+
+def is_in_function_decl(self, orign=None):
+    if orign is None:
+        orign = self
+
     if self.kind == clang.cindex.CursorKind.FUNCTION_DECL:
         return True
-    return self.lexical_parent.is_in_function_decl()
+
+    # One more libclang quirk,
+    # In case of `void (*foo)( enum { H0 } a);`,
+    # the parent of `enum` is directly the `TRANSLATION_UNIT`
+    # So just parse all the ENUM_DECL in PARAM_DECL and try to find ourself...
+    if self.kind == clang.cindex.CursorKind.TRANSLATION_UNIT:
+        all_params = find_cursors(self, clang.cindex.CursorKind.PARM_DECL)
+        return any(
+            orign in find_cursors(param, clang.cindex.CursorKind.ENUM_DECL)
+            for param in all_params
+        )
+
+    return self.lexical_parent.is_in_function_decl(orign)
 
 
 def get_interesting_children(self):
