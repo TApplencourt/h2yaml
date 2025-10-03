@@ -7,6 +7,7 @@
 # ///
 
 from functools import cache, cached_property, wraps
+from ctypes import c_uint
 from collections import deque
 from typing import Callable
 import sys
@@ -124,7 +125,7 @@ except TypeError:  # pragma: no cover
 
 
 @cached_property
-def is_in_interesting_header(self):
+def _is_in_interesting_header(self):
     # Note: This function uses the global variable PATTERN_INTERESTING_HEADER.
 
     # Skip system headers
@@ -139,12 +140,12 @@ def is_in_interesting_header(self):
 
 
 ccs = clang.cindex.SourceLocation
-ccs.is_in_interesting_header = is_in_interesting_header
+ccs.is_in_interesting_header = _is_in_interesting_header
 # TypeError: Cannot use cached_property instance without calling __set_name__ on it.
 ccs.is_in_interesting_header.__set_name__(ccs, "is_in_interesting_header")
 
 
-def is_anonymous2(self):
+def _is_anonymous2(self):
     def is_in_usr(targets):
         return any(t in self.get_usr() for t in targets)
 
@@ -172,12 +173,16 @@ def is_anonymous2(self):
             return self.is_anonymous()
 
 
-def is_inline_specifier(self):
-    assert self.kind == clang.cindex.CursorKind.FUNCTION_DECL
-    return any(token.spelling == "inline" for token in self.get_tokens())
+# Expose libclang `clang_Cursor_isFunctionInlined` C API
+clang.cindex.conf.lib.clang_Cursor_isFunctionInlined.restype = c_uint
+clang.cindex.conf.lib.clang_Cursor_isFunctionInlined.argtypes = [clang.cindex.Cursor]
 
 
-def is_forward_declaration(self):
+def _is_function_inlined(self):
+    return bool(clang.cindex.conf.lib.clang_Cursor_isFunctionInlined(self))
+
+
+def _is_forward_declaration(self):
     # Workaround for a libclang quirk:
     # Typedefs referring to forward-declared structs may appear as if they point to the final definition.
     # As a fallback, we check if this typedef was already seen earlier in the parsing phase.
@@ -200,38 +205,38 @@ def find_cursors(cursor, kind):
     return found_cursors
 
 
-def is_in_function_decl(self, orign=None):
+def _is_in_function_decl(self, orign=None):
     if orign is None:
         orign = self
 
-    if self.kind == clang.cindex.CursorKind.FUNCTION_DECL:
-        return True
+    match self.kind:
+        case clang.cindex.CursorKind.FUNCTION_DECL:
+            return True
+        # One more libclang quirk,
+        # In case of `void (*foo)( enum { H0 } );`,
+        # the parent of `enum` is directly the `TRANSLATION_UNIT`...
+        #   So we need parse all the ENUM_DECL in PARAM_DECL and try to find ourself.
+        case clang.cindex.CursorKind.TRANSLATION_UNIT:
+            all_params = find_cursors(self, clang.cindex.CursorKind.PARM_DECL)
+            return any(
+                orign in find_cursors(param, clang.cindex.CursorKind.ENUM_DECL)
+                for param in all_params
+            )
+        case _:
+            return self.lexical_parent.is_in_function_decl(orign)
 
-    # One more libclang quirk,
-    # In case of `void (*foo)( enum { H0 } a);`,
-    # the parent of `enum` is directly the `TRANSLATION_UNIT`
-    # So just parse all the ENUM_DECL in PARAM_DECL and try to find ourself...
-    if self.kind == clang.cindex.CursorKind.TRANSLATION_UNIT:
-        all_params = find_cursors(self, clang.cindex.CursorKind.PARM_DECL)
-        return any(
-            orign in find_cursors(param, clang.cindex.CursorKind.ENUM_DECL)
-            for param in all_params
-        )
 
-    return self.lexical_parent.is_in_function_decl(orign)
-
-
-def get_interesting_children(self):
+def _get_interesting_children(self):
     for c in self.get_children():
         if self.location.is_in_interesting_header:
             yield c
 
 
-clang.cindex.Cursor.is_anonymous2 = is_anonymous2
-clang.cindex.Cursor.is_inline_specifier = is_inline_specifier
-clang.cindex.Cursor.is_forward_declaration = is_forward_declaration
-clang.cindex.Cursor.is_in_function_decl = is_in_function_decl
-clang.cindex.Cursor.get_interesting_children = get_interesting_children
+clang.cindex.Cursor.is_anonymous2 = _is_anonymous2
+clang.cindex.Cursor.is_function_inlined = _is_function_inlined
+clang.cindex.Cursor.is_forward_declaration = _is_forward_declaration
+clang.cindex.Cursor.is_in_function_decl = _is_in_function_decl
+clang.cindex.Cursor.get_interesting_children = _get_interesting_children
 
 
 #    _                 __                         _
@@ -434,7 +439,7 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
 
     d = {"name": c.spelling} | parse_storage_class(c)
 
-    if c.is_inline_specifier():
+    if c.is_function_inlined():
         d["inline"] = True
 
     match t := c.type.kind:
