@@ -1,3 +1,18 @@
+declarations:
+- name: foo2
+  type:
+    kind: pointer
+    type:
+      kind: function
+      params:
+      - type:
+          kind: enum
+          members:
+          - name: H0
+            val: 0
+      type:
+        kind: void
+        name: void
 enums:
 - members:
   - name: A0
@@ -40,16 +55,6 @@ enums:
     val: 0
 functions:
 - name: foo1
-  params:
-  - type:
-      kind: enum
-      members:
-      - name: H0
-        val: 0
-  type:
-    kind: void
-    name: void
-- name: foo2
   params:
   - type:
       kind: enum
