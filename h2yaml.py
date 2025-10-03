@@ -195,14 +195,18 @@ def _is_forward_declaration(self):
 
 
 @cache
-def find_cursors(cursor, kind):
-    """Recursively finds all cursors of a specific kind."""
-    found_cursors = set()
-    if cursor.kind == kind:
-        found_cursors.add(cursor)
-    for child in cursor.get_children():
-        found_cursors |= find_cursors(child, kind)
-    return found_cursors
+def _all_enums_in_param(self):
+    def find_cursors(cursor, kind):
+        if cursor.kind == kind:
+            yield cursor
+        for child in cursor.get_children():
+            yield from find_cursors(child, kind)
+
+    return {
+        enum
+        for param in find_cursors(self, clang.cindex.CursorKind.PARM_DECL)
+        for enum in find_cursors(param, clang.cindex.CursorKind.ENUM_DECL)
+    }
 
 
 def _is_in_function_decl(self, orign=None):
@@ -217,11 +221,7 @@ def _is_in_function_decl(self, orign=None):
         # the parent of `enum` is directly the `TRANSLATION_UNIT`...
         #   So we need parse all the ENUM_DECL in PARAM_DECL and try to find ourself.
         case clang.cindex.CursorKind.TRANSLATION_UNIT:
-            all_params = find_cursors(self, clang.cindex.CursorKind.PARM_DECL)
-            return any(
-                orign in find_cursors(param, clang.cindex.CursorKind.ENUM_DECL)
-                for param in all_params
-            )
+            return orign in _all_enums_in_param(self)
         case _:
             return self.lexical_parent.is_in_function_decl(orign)
 
