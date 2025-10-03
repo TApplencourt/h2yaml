@@ -611,7 +611,7 @@ def h2yaml(
     )
     check_diagnostic(translation_unit)
     decls = parse_translation_unit(translation_unit.cursor, pattern, canonicalization)
-    return yaml.dump(decls)
+    return yaml.dump(decls, Dumper=yaml.CDumper)
 
 
 def split_clang_args(argv):
