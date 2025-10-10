@@ -1,5 +1,5 @@
 declarations:
-- name: foo2
+- name: i_foo2
   type:
     kind: pointer
     type:
@@ -8,18 +8,41 @@ declarations:
       - type:
           kind: enum
           members:
-          - name: H0
+          - name: i_2
             val: 0
+      type:
+        kind: void
+        name: void
+- name: i_foo4
+  type:
+    kind: pointer
+    type:
+      kind: function
+      params:
+      - type:
+          kind: enum
+          members:
+          - name: i_ae_0
+            val: 0
+          name: i_a
       type:
         kind: void
         name: void
 enums:
 - members:
-  - name: A0
+  - name: h_0e_0
     val: 0
-  name: A
+  name: h_0e
 - members:
-  - name: A1
+  - name: h_1e_0
+    val: 0
+  name: h_1e
+- members:
+  - name: h_2e_0
+    val: 0
+  name: h_2e
+- members:
+  - name: h_0
     val: 0
 - members:
   - name: B0
@@ -39,32 +62,47 @@ enums:
   - name: C3
     val: 5
   name: C
-- members: &id002
-  - name: D0
-    val: 0
-- members:
-  - name: E0
-    val: 0
-  name: E
 - members:
   - name: F0
     val: 10
   name: F
-- members: &id001
-  - name: H0
-    val: 0
 functions:
-- name: foo1
+- name: i_foo1
   params:
   - type:
       kind: enum
       members:
-      - name: H0
+      - name: i_2
         val: 0
   type:
     kind: void
     name: void
+- name: i_foo3
+  params:
+  - type:
+      kind: enum
+      members:
+      - name: i_ae_0
+        val: 0
+      name: i_a
+  type:
+    kind: void
+    name: void
 structs:
+- members:
+  - name: A_m
+    type:
+      kind: enum
+      name: h_1e
+  name: h_1s
+- members:
+  - name: A_m
+    type:
+      kind: enum
+      members:
+      - name: i_1
+        val: 0
+  name: i_A_s
 - members:
   - name: bar
     type:
@@ -79,21 +117,17 @@ structs:
       kind: custom_type
       name: F
   name: G
-- members:
-  - name: a
-    type:
-      kind: enum
-      members: *id001
-  name: S2
 typedefs:
-- name: D_t
+- name: h_2t
   type:
     kind: enum
-    members: *id002
-- name: E_t
+    name: h_2e
+- name: i_0t
   type:
     kind: enum
-    name: E
+    members:
+    - name: i_0
+      val: 0
 - name: F
   type:
     kind: enum

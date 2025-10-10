@@ -539,25 +539,29 @@ def parse_enum_decl(c: clang.cindex.Cursor):
     }
     d_name = {"name": c.spelling} if not c.is_anonymous2() else {}
 
-    # 6.2.1 Scopes of identifiers, of C language specification
-    # 404 If the declarator or type specifier that declares the identifier
-    #   appears outside of any block or list of parameters,
-    #   the identifier has file scope, which terminates at the end
-    #   of the translation unit.
-
-    # 405 If the declarator or type specifier that declares the identifier
-    #   appears inside a block or within the list of parameter declarations
-    #   in a function definition,
-    #   the identifier has block scope, which terminates at the end of the associated block.
-
-    if not c.is_in_function_decl():
-        DECLARATIONS["enums"].append(d_name | d_members)
-
-    # If it's anonymous we need to "inline" the header,
-    #   for instrospection purpose.
-    if c.is_anonymous2():
+    # Hoisting Rule:
+    # - Always inline enums declared in function parameters
+    # - Always hoist named enums
+    # - Hoist anonymous enums that are at the top level
+    # - Finally, inline the rest (of anonymous enums)
+    if c.is_in_function_decl():
         return d_name | d_members
-    return d_name
+
+    if not (c.is_anonymous2()):
+        DECLARATIONS["enums"].append(d_name | d_members)
+        return d_name
+
+    # Anonymous enums at the top level should be hoisted.
+    # Some false positives may occur: for example, the enum in `typedef enum { } _t`
+    # will have its parent as the TRANSLATION_UNIT.
+    # Fortunately (?), the `is_anonymous` function will return False in that case.
+    if (
+        c.lexical_parent.kind == clang.cindex.CursorKind.TRANSLATION_UNIT
+        and c.is_anonymous()
+    ):
+        DECLARATIONS["enums"].append(d_members)
+
+    return d_members
 
 
 #   ___
