@@ -1,7 +1,7 @@
 [project]
 name = "h2yaml"
-version = "0.2.1"
-requires-python = ">= 3.11"
+dynamic = ["version"]
+requires-python = ">= 3.10"
 dependencies = [
   "pyyaml",
   "libclang",
@@ -12,6 +12,9 @@ h2yaml = "h2yaml:main"
 
 [tool.setuptools]
 py-modules = ["h2yaml"]
+
+[tool.setuptools.dynamic]
+version = {attr = "h2yaml.__version__"}
 
 [dependency-groups]
 test = [

@@ -6,6 +6,8 @@
 # ]
 # ///
 
+__version__ = "0.2.1"
+
 from functools import cache, cached_property, wraps
 from ctypes import c_uint
 from collections import deque
@@ -18,8 +20,6 @@ import subprocess
 import re
 import argparse
 import pathlib
-import tomllib
-import importlib.metadata
 
 try:
     import type_enforced
@@ -34,16 +34,6 @@ except ModuleNotFoundError:  # pragma: no cover
 #   | | _|_ o |  _
 #   |_|  |_ | | _>
 #
-def get_version():
-    pyproject = pathlib.Path(__file__).resolve().parent / "pyproject.toml"
-    try:
-        with pyproject.open("rb") as f:
-            data = tomllib.load(f)
-        return data["project"]["version"]
-    except Exception:  # pragma: no cover
-        return importlib.metadata.version("h2yaml")
-
-
 class classproperty(property):
     def __get__(self, owner_self, owner_cls):
         return self.fget(owner_cls)
@@ -644,7 +634,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {get_version()}"
+        "--version", action="version", version=f"%(prog)s {__version__}"
     )
 
     parser.add_argument(
