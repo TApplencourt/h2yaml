@@ -19,7 +19,6 @@ import os
 import subprocess
 import re
 import argparse
-import pathlib
 
 try:
     import type_enforced
