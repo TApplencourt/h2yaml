@@ -38,14 +38,17 @@ class classproperty(property):
         return self.fget(owner_cls)
 
 
-def cache_using_first_arg(f: Callable):
-    cache = f.cache = {}
+def cache_by_cursor(f: Callable):
+    """Cache based only on the cursor argument.
+    WARNING: All other arguments are ignored in cache lookup."""
+
+    cache = {}
 
     @wraps(f)
-    def memoizer(arg1, *args):
-        if arg1 not in cache:
-            cache[arg1] = f(arg1, *args)
-        return cache[arg1]
+    def memoizer(cursor, *args, **kwargs):
+        if cursor not in cache:
+            cache[cursor] = f(cursor, *args, **kwargs)
+        return cache[cursor]
 
     return memoizer
 
@@ -382,7 +385,7 @@ def parse_decl(c: clang.cindex.Cursor, cursors: Callable | None = None):
 #    | \/ |_) (/_ (_| (/_ |    |_/ (/_ (_ |
 #      /  |
 # `cursors` is an iterator, so impossible to cache
-@cache_using_first_arg
+@cache_by_cursor
 @type_enforced.Enforcer
 def parse_typedef_decl(c: clang.cindex.Cursor, cursors: Callable):
     d_name = {"name": c.spelling}
