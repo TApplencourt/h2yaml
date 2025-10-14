@@ -9,7 +9,7 @@
 __version__ = "0.2.1"
 
 from functools import cache, cached_property, wraps
-from ctypes import c_uint
+from ctypes import c_bool
 from collections import deque
 from typing import Callable
 import sys
@@ -179,12 +179,12 @@ def _is_anonymous2(self):
 
 
 # Expose libclang `clang_Cursor_isFunctionInlined` C API
-clang.cindex.conf.lib.clang_Cursor_isFunctionInlined.restype = c_uint
+clang.cindex.conf.lib.clang_Cursor_isFunctionInlined.restype = c_bool
 clang.cindex.conf.lib.clang_Cursor_isFunctionInlined.argtypes = [clang.cindex.Cursor]
 
 
 def _is_function_inlined(self):
-    return bool(clang.cindex.conf.lib.clang_Cursor_isFunctionInlined(self))
+    return clang.cindex.conf.lib.clang_Cursor_isFunctionInlined(self)
 
 
 def _is_forward_declaration(self):
