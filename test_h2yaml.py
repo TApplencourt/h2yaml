@@ -65,6 +65,11 @@ def test_canonicalization():
     assert new_yml == ref_yml
 
 
+def test_no_macro_in_enum():
+    filename = "./tests/enum"
+    assert "MAX_SIZE" in h2yaml.h2yaml(f"{filename}.h", assume_no_macro_in_enum=True)
+
+
 def test_main_version():
     with pytest.raises(SystemExit) as e:
         h2yaml.main(["-Wc,-DTEST_DEFINE=12", "./tests/struct_forward.h"])

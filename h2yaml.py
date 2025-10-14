@@ -123,6 +123,11 @@ def _is_in_interesting_header(self):
     # Skip system headers
     if self.is_in_system_header:
         return False
+
+    # Skip Macro
+    if not (self.file):
+        return False
+
     # Skip standard library headers
     basename = os.path.basename(self.file.name)
     if any(basename.startswith(s) for s in ["std", "__std"]):
@@ -131,10 +136,18 @@ def _is_in_interesting_header(self):
     return re.search(PATTERN_INTERESTING_HEADER, basename)
 
 
+@cached_property
+def _is_macro_expansion(self):
+    """Return True if this SourceLocation was produced by macro expansion."""
+    return str(self) in MACRO_INSTANTIATION_LOCATION
+
+
 ccs = clang.cindex.SourceLocation
 ccs.is_in_interesting_header = _is_in_interesting_header
 # TypeError: Cannot use cached_property instance without calling __set_name__ on it.
 ccs.is_in_interesting_header.__set_name__(ccs, "is_in_interesting_header")
+ccs.is_macro_expansion = _is_macro_expansion
+ccs.is_macro_expansion.__set_name__(ccs, "is_macro_expansion")
 
 
 def _is_anonymous2(self):
@@ -376,6 +389,14 @@ def parse_decl(c: clang.cindex.Cursor, cursors: Callable | None = None):
             return parse_function_decl(c, cursors)
         case clang.cindex.CursorKind.VAR_DECL:
             return parse_var_decl(c)
+        case clang.cindex.CursorKind.MACRO_INSTANTIATION:
+            MACRO_INSTANTIATION_LOCATION.add(str(c.location))
+            return
+        case (
+            clang.cindex.CursorKind.MACRO_DEFINITION
+            | clang.cindex.CursorKind.INCLUSION_DIRECTIVE
+        ):
+            return
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_decl: {k}")
 
@@ -517,14 +538,29 @@ def parse_union_decl(c: clang.cindex.Cursor):
 #   |_ ._      ._ _    | \  _   _ |
 #   |_ | | |_| | | |   |_/ (/_ (_ |
 #
-
-
 @cache
 @type_enforced.Enforcer
 def parse_enum_decl(c: clang.cindex.Cursor):
     def parse_enum_constant_del(c: clang.cindex.Cursor):
         assert c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
-        return {"name": c.spelling, "val": c.enum_value}
+
+        d_name = {"name": c.spelling}
+        tokens, after_eq = [], False
+
+        for t in c.get_tokens():
+            if t.location.is_macro_expansion:
+                return d_name | {"val": c.enum_value}
+
+            if after_eq:
+                tokens.append(t.spelling)
+
+            if t.spelling == "=":
+                after_eq = True
+
+        if not tokens:
+            return d_name
+
+        return d_name | {"val": " ".join(tokens)}
 
     d_members = {
         "members": [parse_enum_constant_del(f) for f in c.get_interesting_children()]
@@ -570,6 +606,9 @@ def parse_translation_unit(t: clang.cindex.Cursor, pattern, canonicalization):
         for k in ("structs", "unions", "typedefs", "declarations", "functions", "enums")
     }
 
+    global MACRO_INSTANTIATION_LOCATION
+    MACRO_INSTANTIATION_LOCATION = set()
+
     # Struct and Union can be self-referential,
     # so we need to track them to avoid recursion problem
     global CACHE_STRUCT_UNION_DECL_REC
@@ -599,11 +638,22 @@ def parse_translation_unit(t: clang.cindex.Cursor, pattern, canonicalization):
 #   |  | (_| | | |
 #
 def h2yaml(
-    file, *, clang_args=[], unsaved_files=None, pattern=".*", canonicalization=False
+    file,
+    *,
+    clang_args=[],
+    unsaved_files=None,
+    pattern=".*",
+    canonicalization=False,
+    assume_no_macro_in_enum=False,
 ):
     system_args = [f"-I{p}" for p in SystemIncludes.paths]
     translation_unit = clang.cindex.Index.create().parse(
-        file, args=clang_args + system_args, unsaved_files=unsaved_files
+        file,
+        args=clang_args + system_args,
+        unsaved_files=unsaved_files,
+        options=clang.cindex.TranslationUnit.PARSE_NONE
+        if assume_no_macro_in_enum
+        else clang.cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD,
     )
     check_diagnostic(translation_unit)
     decls = parse_translation_unit(translation_unit.cursor, pattern, canonicalization)
@@ -651,6 +701,11 @@ def parse_args(argv):
         "--canonicalization",
         action="store_true",
         help="Assign names to anonymous arguments.",
+    )
+    parser.add_argument(
+        "--assume-no-macro-in-enum",
+        action="store_true",
+        help="Macro will be printed as string literal.",
     )
 
     parser.add_argument("file", help="File to process or '-' for stdin")

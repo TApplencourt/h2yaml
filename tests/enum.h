@@ -34,10 +34,13 @@ struct S0 {
   enum B { B0 = 1, B1, B2 } * bar;
 };
 
+#define MAX_SIZE 100
 union S1 {
-  enum C { C0 = 1, C1 = 2, C2 = 0x3, C3 = C1 + C2 } bar;
+  enum C { C0 = 1, C1 = 1, C2 = 2, C3 = 0x3, C4 = 1 << 2, C5 = C1 + C4, C6, C7 = MAX_SIZE + 1 } bar;
 };
 
+#define MAX_SIZE 101
+enum D { D0 = MAX_SIZE  } ;
 typedef enum F { F0 = 10 } F;
 typedef struct G {
   F f;

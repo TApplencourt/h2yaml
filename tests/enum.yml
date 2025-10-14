@@ -9,7 +9,6 @@ declarations:
           kind: enum
           members:
           - name: i_2
-            val: 0
       type:
         kind: void
         name: void
@@ -23,7 +22,6 @@ declarations:
           kind: enum
           members:
           - name: i_ae_0
-            val: 0
           name: i_a
       type:
         kind: void
@@ -31,40 +29,45 @@ declarations:
 enums:
 - members:
   - name: h_0e_0
-    val: 0
   name: h_0e
 - members:
   - name: h_1e_0
-    val: 0
   name: h_1e
 - members:
   - name: h_2e_0
-    val: 0
   name: h_2e
 - members:
   - name: h_0
-    val: 0
 - members:
   - name: B0
-    val: 1
+    val: '1'
   - name: B1
-    val: 2
   - name: B2
-    val: 3
   name: B
 - members:
   - name: C0
-    val: 1
+    val: '1'
   - name: C1
-    val: 2
+    val: '1'
   - name: C2
-    val: 3
+    val: '2'
   - name: C3
-    val: 5
+    val: '0x3'
+  - name: C4
+    val: 1 << 2
+  - name: C5
+    val: C1 + C4
+  - name: C6
+  - name: C7
+    val: 101
   name: C
 - members:
+  - name: D0
+    val: 101
+  name: D
+- members:
   - name: F0
-    val: 10
+    val: '10'
   name: F
 functions:
 - name: i_foo1
@@ -73,7 +76,6 @@ functions:
       kind: enum
       members:
       - name: i_2
-        val: 0
   type:
     kind: void
     name: void
@@ -83,7 +85,6 @@ functions:
       kind: enum
       members:
       - name: i_ae_0
-        val: 0
       name: i_a
   type:
     kind: void
@@ -101,7 +102,6 @@ structs:
       kind: enum
       members:
       - name: i_1
-        val: 0
   name: i_A_s
 - members:
   - name: bar
@@ -127,7 +127,6 @@ typedefs:
     kind: enum
     members:
     - name: i_0
-      val: 0
 - name: F
   type:
     kind: enum
