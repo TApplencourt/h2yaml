@@ -74,7 +74,7 @@ def string_to_cast_format(str_):
     str_ = re.sub(r",\s*", ", ", str_)
     # Sanitize hex
     str_ = re.sub(r"0x0*([0-9A-Fa-f]+)", lambda m: "0x" + m.group(1).lower(), str_)
-    # Add spaces between <<, +, -. Negative look behing to avoid `-1` to match
+    # Add spaces between <<, +, -. Negative look behind to avoid `-1` to match
     str_ = re.sub(r"(?<!^)\s*(<<|\+|-)\s*", r" \1 ", str_)
     # Delete useless enclosing parenthesis
     str_ = re.sub(r"^\((.*)\)$", r"\1", str_)
@@ -231,9 +231,9 @@ def _all_enums_in_param(self):
     }
 
 
-def _is_in_function_decl(self, orign=None):
-    if orign is None:
-        orign = self
+def _is_in_function_decl(self, origin=None):
+    if origin is None:
+        origin = self
 
     match self.kind:
         case clang.cindex.CursorKind.FUNCTION_DECL:
@@ -243,9 +243,9 @@ def _is_in_function_decl(self, orign=None):
         # the parent of `enum` is directly the `TRANSLATION_UNIT`...
         #   So we need parse all the ENUM_DECL in PARAM_DECL and try to find ourself.
         case clang.cindex.CursorKind.TRANSLATION_UNIT:
-            return orign in _all_enums_in_param(self)
+            return origin in _all_enums_in_param(self)
         case _:
-            return self.lexical_parent.is_in_function_decl(orign)
+            return self.lexical_parent.is_in_function_decl(origin)
 
 
 def _get_interesting_children(self):
@@ -372,7 +372,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
 
             if COMPAT_CAST_TO_YAML and (c := next(cursors, None)):
                 assert c.kind != clang.cindex.CursorKind.PARM_DECL
-                # Workarround for bug, with macro and `[`.
+                # Workaround for bug, with macro and `[`.
                 #   #define V 1
                 #   /* WTF */
                 #   int A[V];
@@ -654,7 +654,7 @@ def parse_translation_unit(
     global PATTERN_INTERESTING_HEADER
     PATTERN_INTERESTING_HEADER = pattern
 
-    # CANONICALIZATION is cheked to set name if anonnymous
+    # CANONICALIZATION is checked to set name if anonnymous
     global CANONICALIZATION
     CANONICALIZATION = canonicalization
 
