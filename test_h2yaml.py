@@ -74,6 +74,7 @@ def test_compat_cast_to_yaml():
 
     assert new_yml == ref_yml
 
+
 def test_main_version():
     with pytest.raises(SystemExit) as e:
         h2yaml.main(["-Wc,-DTEST_DEFINE=12", "./tests/struct_forward.h"])
