@@ -54,9 +54,9 @@ enums:
   - name: C3
     val: '0x3'
   - name: C4
-    val: 1 << 2
+    val: 1<<2
   - name: C5
-    val: C1 + C4
+    val: C1+C4
   - name: C6
   - name: C7
     val: 101

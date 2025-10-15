@@ -2,10 +2,10 @@ declarations:
 - name: A
   type:
     kind: array
-    length: 5
+    length: '5'
     type:
       kind: array
-      length: 10
+      length: '10'
       type:
         kind: char
         name: char
@@ -15,21 +15,21 @@ declarations:
     length: 1
     type:
       kind: array
-      length: 10
+      length: '10'
       type:
         kind: char
         name: char
 - name: C
   type:
     kind: array
-    length: 3
+    length: V
     type:
       kind: int
       name: int
 - name: foo
   type:
     kind: array
-    length: 5
+    length: 2 + V
     type:
       kind: pointer
       type:
@@ -45,11 +45,11 @@ declarations:
 - name: D
   type:
     kind: array
-    length: 3
+    length: -V_e
     type:
       kind: int
       name: int
 enums:
 - members:
   - name: V_e
-    val: -3
+    val: -V
