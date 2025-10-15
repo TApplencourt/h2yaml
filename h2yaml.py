@@ -68,6 +68,19 @@ def h2yaml_warning(c: clang.cindex.Cursor, msg):
     )
 
 
+def string_to_cast_format(str_):
+    # /!\ Not super robust
+    # Add Space after comma.
+    str_ = re.sub(r",\s*", ", ", str_)
+    # Sanitize hex
+    str_ = re.sub(r"0x0*([0-9A-Fa-f]+)", lambda m: "0x" + m.group(1).lower(), str_)
+    # Add Space between shift,+,and-. Negative look behing to avoid `-1` to match
+    str_ = re.sub(r"(?<!^)\s*(<<|\+|-)\s*", r" \1 ", str_)
+    # Delete useless enclosing parenthesis
+    str_ = re.sub(r"^\((.*)\)$", r"\1", str_)
+    return str_
+
+
 class SystemIncludes:
     # Our libclang version may differ from the "normal" compiler used by the system.
     # This means we may lack the `isystem` headers that the user expects.
@@ -113,6 +126,20 @@ try:
     hash(clang.cindex.Cursor())
 except TypeError:  # pragma: no cover
     clang.cindex.Cursor.__hash__ = lambda self: self.hash
+
+# Expose libclang `clang_Cursor_isFunctionInlined` C API
+try:
+    clang.cindex.Cursor().is_function_inlined
+except AttributeError:  # pragma: no cover
+    clang.cindex.conf.lib.clang_Cursor_isFunctionInlined.restype = bool
+    clang.cindex.conf.lib.clang_Cursor_isFunctionInlined.argtypes = [
+        clang.cindex.Cursor
+    ]
+
+    def _is_function_inlined(self):
+        return clang.cindex.conf.lib.clang_Cursor_isFunctionInlined(self)
+
+    clang.cindex.Cursor.is_function_inlined = _is_function_inlined
 
 
 @cached_property
@@ -177,15 +204,6 @@ def _is_anonymous2(self):
             return self.is_anonymous()
 
 
-# Expose libclang `clang_Cursor_isFunctionInlined` C API
-clang.cindex.conf.lib.clang_Cursor_isFunctionInlined.restype = bool
-clang.cindex.conf.lib.clang_Cursor_isFunctionInlined.argtypes = [clang.cindex.Cursor]
-
-
-def _is_function_inlined(self):
-    return clang.cindex.conf.lib.clang_Cursor_isFunctionInlined(self)
-
-
 def _is_forward_declaration(self):
     # Workaround for a libclang quirk:
     # Typedefs referring to forward-declared structs may appear as if they point to the final definition.
@@ -237,7 +255,6 @@ def _get_interesting_children(self):
 
 
 clang.cindex.Cursor.is_anonymous2 = _is_anonymous2
-clang.cindex.Cursor.is_function_inlined = _is_function_inlined
 clang.cindex.Cursor.is_forward_declaration = _is_forward_declaration
 clang.cindex.Cursor.is_in_function_decl = _is_in_function_decl
 clang.cindex.Cursor.get_interesting_children = _get_interesting_children
@@ -351,11 +368,24 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
         case clang.cindex.TypeKind.RECORD:
             return parse_decl(t.get_declaration())
         case clang.cindex.TypeKind.CONSTANTARRAY:
-            return {
-                "kind": "array",
-                "type": parse_type(t.element_type, cursors),
-                "length": t.element_count,
-            } | d_qualified
+            d = {"kind": "array", "type": parse_type(t.element_type, cursors)}
+
+            if COMPAT_CAST_TO_YAML and (c := next(cursors, None)):
+                assert c.kind != clang.cindex.CursorKind.PARM_DECL
+                # Workarround for bug, with macro and `[`.
+                #   #define V 1
+                #   /* WTF */
+                #   int A[V];
+                # Will have token ['1', '/* WTF */', 'int', 'A', '[', 'V']
+                tokens = "".join(t2.spelling for t2 in c.get_tokens())
+                if "[" in tokens:
+                    tokens = tokens[tokens.rindex("[") + 1 :]
+                d["length"] = string_to_cast_format(tokens)
+            else:
+                d["length"] = t.element_count
+
+            return d | d_qualified
+
         case clang.cindex.TypeKind.INCOMPLETEARRAY:
             return {
                 "kind": "array",
@@ -547,7 +577,7 @@ def parse_enum_decl(c: clang.cindex.Cursor):
         tokens, after_eq = [], False
 
         for t in c.get_tokens():
-            if t.location.is_macro_expansion:
+            if not (COMPAT_CAST_TO_YAML) and t.location.is_macro_expansion:
                 return d_name | {"val": c.enum_value}
 
             if after_eq:
@@ -559,7 +589,11 @@ def parse_enum_decl(c: clang.cindex.Cursor):
         if not tokens:
             return d_name
 
-        return d_name | {"val": " ".join(tokens)}
+        tokens_str = "".join(tokens)
+        if COMPAT_CAST_TO_YAML:
+            tokens_str = string_to_cast_format(tokens_str)
+
+        return d_name | {"val": tokens_str}
 
     d_members = {
         "members": [parse_enum_constant_del(f) for f in c.get_interesting_children()]
@@ -595,7 +629,9 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 #    | ._ _. ._   _ |  _. _|_ o  _  ._    | | ._  o _|_
 #    | | (_| | | _> | (_|  |_ | (_) | |   |_| | | |  |_
 #
-def parse_translation_unit(t: clang.cindex.Cursor, pattern, canonicalization):
+def parse_translation_unit(
+    t: clang.cindex.Cursor, pattern, canonicalization, compat_cast_to_yaml
+):
     assert t.kind == clang.cindex.CursorKind.TRANSLATION_UNIT
 
     # We need to set some global variable
@@ -622,6 +658,9 @@ def parse_translation_unit(t: clang.cindex.Cursor, pattern, canonicalization):
     global CANONICALIZATION
     CANONICALIZATION = canonicalization
 
+    global COMPAT_CAST_TO_YAML
+    COMPAT_CAST_TO_YAML = compat_cast_to_yaml
+
     user_children = (c for c in t.get_children() if c.location.is_in_interesting_header)
 
     for c in user_children:
@@ -643,19 +682,19 @@ def h2yaml(
     unsaved_files=None,
     pattern=".*",
     canonicalization=False,
-    assume_no_macro_in_enum=False,
+    compat_cast_to_yaml=False,
 ):
     system_args = [f"-I{p}" for p in SystemIncludes.paths]
-    translation_unit = clang.cindex.Index.create().parse(
+    tu = clang.cindex.Index.create().parse(
         file,
         args=clang_args + system_args,
         unsaved_files=unsaved_files,
-        options=clang.cindex.TranslationUnit.PARSE_NONE
-        if assume_no_macro_in_enum
-        else clang.cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD,
+        options=clang.cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD,
     )
-    check_diagnostic(translation_unit)
-    decls = parse_translation_unit(translation_unit.cursor, pattern, canonicalization)
+    check_diagnostic(tu)
+    decls = parse_translation_unit(
+        tu.cursor, pattern, canonicalization, compat_cast_to_yaml
+    )
     return yaml.dump(decls, Dumper=yaml.CDumper)
 
 
@@ -702,9 +741,9 @@ def parse_args(argv):
         help="Assign names to anonymous arguments.",
     )
     parser.add_argument(
-        "--assume-no-macro-in-enum",
+        "--compat-cast-to-yaml",
         action="store_true",
-        help="Macro will be printed as string literal.",
+        help="Mimic cast-to-yaml output",
     )
 
     parser.add_argument("file", help="File to process or '-' for stdin")

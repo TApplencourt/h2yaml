@@ -65,10 +65,14 @@ def test_canonicalization():
     assert new_yml == ref_yml
 
 
-def test_no_macro_in_enum():
-    filename = "./tests/enum"
-    assert "MAX_SIZE" in h2yaml.h2yaml(f"{filename}.h", assume_no_macro_in_enum=True)
+def test_compat_cast_to_yaml():
+    filename = "./tests/array"
+    new_yml = yaml.safe_load(h2yaml.h2yaml(f"{filename}.h", compat_cast_to_yaml=True))
 
+    with open(f"{filename}_cast.yml", "r") as f:
+        ref_yml = yaml.safe_load(f)
+
+    assert new_yml == ref_yml
 
 def test_main_version():
     with pytest.raises(SystemExit) as e:
