@@ -599,7 +599,6 @@ def parse_enum_decl(c: clang.cindex.Cursor):
         assert c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
 
         d_name = {"name": c.spelling}
-        tokens, after_eq = [], False
 
         f, tokens_str = string_right_of_equal_token(c)
         if not f:
