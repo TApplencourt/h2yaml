@@ -27,3 +27,5 @@ const int *const restrict a12;
 extern const char *a13;
 
 int a14[][3];
+
+static int a = 1;

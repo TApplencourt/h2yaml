@@ -464,6 +464,10 @@ def parse_var_decl(c: clang.cindex.Cursor):
         "type": parse_type(c.type, c.get_interesting_children()),
     } | parse_storage_class(c)
 
+    _, token_str = string_right_of_equal_token(c)
+    if token_str:
+        d["init"] = token_str
+
     DECLARATIONS["declarations"].append(d)
 
 
@@ -567,6 +571,27 @@ def parse_union_decl(c: clang.cindex.Cursor):
 #   |_ ._      ._ _    | \  _   _ |
 #   |_ | | |_| | | |   |_/ (/_ (_ |
 #
+@type_enforced.Enforcer
+def string_right_of_equal_token(c: clang.cindex.Cursor):
+    tokens_str, after_eq = "", False
+    for t in c.get_tokens():
+        if not (COMPAT_CAST_TO_YAML) and t.location.is_macro_expansion:
+            return [False, ""]
+
+        if after_eq:
+            tokens_str += t.spelling
+
+        if t.spelling == "=":
+            after_eq = True
+
+    if not tokens_str:
+        return [True, ""]
+
+    if COMPAT_CAST_TO_YAML:
+        tokens_str = string_to_cast_format(tokens_str)
+    return [True, tokens_str]
+
+
 @cache
 @type_enforced.Enforcer
 def parse_enum_decl(c: clang.cindex.Cursor):
@@ -576,22 +601,11 @@ def parse_enum_decl(c: clang.cindex.Cursor):
         d_name = {"name": c.spelling}
         tokens, after_eq = [], False
 
-        for t in c.get_tokens():
-            if not (COMPAT_CAST_TO_YAML) and t.location.is_macro_expansion:
-                return d_name | {"val": c.enum_value}
-
-            if after_eq:
-                tokens.append(t.spelling)
-
-            if t.spelling == "=":
-                after_eq = True
-
-        if not tokens:
+        f, tokens_str = string_right_of_equal_token(c)
+        if not f:
+            return d_name | {"val": c.enum_value}
+        if not tokens_str:
             return d_name
-
-        tokens_str = "".join(tokens)
-        if COMPAT_CAST_TO_YAML:
-            tokens_str = string_to_cast_format(tokens_str)
 
         return d_name | {"val": tokens_str}
 
