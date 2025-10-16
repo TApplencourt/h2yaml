@@ -48,7 +48,7 @@ declarations:
     length: 3
     type:
       kind: int
-      name: int
+      name: long
 enums:
 - members:
   - name: V_e

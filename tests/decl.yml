@@ -34,7 +34,7 @@ declarations:
         kind: pointer
         type:
           kind: int
-          name: long int
+          name: long
 - name: a6
   type:
     kind: pointer

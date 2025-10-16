@@ -8,4 +8,4 @@ int C[V];
 void (*foo[(2+V)])(int a);
 
 enum { V_e = -V };
-int D[-V_e];
+long D[-V_e];

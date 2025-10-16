@@ -352,7 +352,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
         case _ if kind := THAPI_types.get(k):
             names = list(s for s in t.spelling.split() if s not in d_qualified)
             # Hack to mimic old ruby parser, remove when not needed anymore
-            if kind == "int" and "int" not in names:
+            if COMPAT_CAST_TO_YAML and kind == "int" and "int" not in names:
                 names.append("int")
             return {"kind": kind, "name": " ".join(names)} | d_qualified
         case clang.cindex.TypeKind.POINTER:
