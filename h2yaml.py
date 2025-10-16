@@ -81,6 +81,27 @@ def string_to_cast_format(str_):
     return str_
 
 
+@type_enforced.Enforcer
+def string_right_of_equal_token(c: clang.cindex.Cursor):
+    tokens_str, after_eq = "", False
+    for t in c.get_tokens():
+        if not (COMPAT_CAST_TO_YAML) and t.location.is_macro_expansion:
+            return [False, ""]
+
+        if after_eq:
+            tokens_str += t.spelling
+
+        if t.spelling == "=":
+            after_eq = True
+
+    if not tokens_str:
+        return [True, ""]
+
+    if COMPAT_CAST_TO_YAML:
+        tokens_str = string_to_cast_format(tokens_str)
+    return [True, tokens_str]
+
+
 class SystemIncludes:
     # Our libclang version may differ from the "normal" compiler used by the system.
     # This means we may lack the `isystem` headers that the user expects.
@@ -571,25 +592,6 @@ def parse_union_decl(c: clang.cindex.Cursor):
 #   |_ ._      ._ _    | \  _   _ |
 #   |_ | | |_| | | |   |_/ (/_ (_ |
 #
-@type_enforced.Enforcer
-def string_right_of_equal_token(c: clang.cindex.Cursor):
-    tokens_str, after_eq = "", False
-    for t in c.get_tokens():
-        if not (COMPAT_CAST_TO_YAML) and t.location.is_macro_expansion:
-            return [False, ""]
-
-        if after_eq:
-            tokens_str += t.spelling
-
-        if t.spelling == "=":
-            after_eq = True
-
-    if not tokens_str:
-        return [True, ""]
-
-    if COMPAT_CAST_TO_YAML:
-        tokens_str = string_to_cast_format(tokens_str)
-    return [True, tokens_str]
 
 
 @cache
