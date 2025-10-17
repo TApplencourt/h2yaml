@@ -2,7 +2,6 @@ import pathlib
 import pytest
 import h2yaml
 import yaml
-import os
 import sys
 
 filenames = [str(p.with_suffix("")) for p in pathlib.Path("./tests/").glob("*.h")]
@@ -100,8 +99,7 @@ def test_main_arguments_and_grouping(capsys):
 
 
 def test_main_arguments_stdin(capsys):
-    from io import StringIO
-    from io import BytesIO, TextIOWrapper
+    from io import TextIOWrapper
 
     file = "./tests/header_filter/foo.h"
 
