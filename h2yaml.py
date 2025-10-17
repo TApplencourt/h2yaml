@@ -87,7 +87,7 @@ def string_to_cast_format(str_):
     # Add space after comma
     str_ = re.sub(r",\s*", ", ", str_)
     # Sanitize hex
-    str_ = re.sub(r"0x0*([0-9A-Fa-f]+)", lambda m: "0x" + m.group(1).lower(), str_)
+    str_ = re.sub(r"0[xX]0*([0-9A-Fa-f]+)", lambda m: "0x" + m.group(1).lower(), str_)
     # Add spaces between <<, +, -. Negative look behind to avoid `-1` to match
     str_ = re.sub(r"(?<!^)\s*(<<|\+|-)\s*", r" \1 ", str_)
     # Delete useless enclosing parenthesis

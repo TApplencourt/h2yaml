@@ -11,7 +11,7 @@ union B_t {
 };
 
 union C {
-    struct {
-        union C *ptr;
-    } C_s;
+  struct {
+    union C *ptr;
+  } C_s;
 };

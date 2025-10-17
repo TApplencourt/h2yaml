@@ -5,7 +5,7 @@ char B[][10];
 /*COUCOU []*/
 int C[V];
 
-void (*foo[(2+V)])(int a);
+void (*foo[(2 + V)])(int a);
 
 enum { V_e = -V };
 long D[-V_e];

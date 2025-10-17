@@ -34,5 +34,7 @@ static inline void f9(void);
 void f10(void) {}
 
 typedef struct f11_s f11_t;
-typedef struct f11_s { int a;} f11_t;
-void f11(f11_t* a);
+typedef struct f11_s {
+  int a;
+} f11_t;
+void f11(f11_t *a);

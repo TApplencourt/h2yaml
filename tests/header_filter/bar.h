@@ -3,4 +3,4 @@ struct A0 {
 };
 int A[TOTO];
 int B = TOTO;
-void bar(void); 
+void bar(void);

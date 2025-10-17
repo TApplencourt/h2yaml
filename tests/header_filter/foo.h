@@ -2,5 +2,4 @@
 #include "bar.h"
 
 int A_ = TOTO;
-void foo(struct A0 a );
-
+void foo(struct A0 a);
