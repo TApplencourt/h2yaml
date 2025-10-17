@@ -45,11 +45,21 @@ def test_cmp_to_ref(filename):
     assert new_yml == ref_yml
 
 
-def test_filter_include():
+def test_include():
+    filename = "./tests/header_filter/foo"
+    new_yml = yaml.safe_load(h2yaml.h2yaml(f"{filename}.h"))
+
+    with open(f"{filename}.yml", "r") as f:
+        ref_yml = yaml.safe_load(f)
+
+    assert new_yml == ref_yml
+
+
+def test_include_patern():
     filename = "./tests/header_filter/foo"
     new_yml = yaml.safe_load(h2yaml.h2yaml(f"{filename}.h", pattern="foo.h"))
 
-    with open(f"{filename}.yml", "r") as f:
+    with open(f"{filename}_pattern.yml", "r") as f:
         ref_yml = yaml.safe_load(f)
 
     assert new_yml == ref_yml
