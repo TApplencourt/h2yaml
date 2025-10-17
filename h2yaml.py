@@ -102,6 +102,24 @@ def string_right_of_equal_token(c: clang.cindex.Cursor):
     return [True, tokens_str]
 
 
+def get_token_source(c: clang.cindex.Cursor):
+    ext_s = c.extent.start
+    ext_e = c.extent.end
+    assert ext_s.file.name == ext_e.file.name
+    assert ext_s.line == ext_e.line
+
+    end = c.extent.end.column
+    begin = c.extent.start.column
+
+    with open(c.location.file.name) as f:
+        lines = f.readlines()
+
+    str_ = lines[c.extent.start.line - 1][begin - 1 : end - 1]
+    if COMPAT_CAST_TO_YAML:
+        str_ = string_to_cast_format(str_)
+    return str_
+
+
 class SystemIncludes:
     # Our libclang version may differ from the "normal" compiler used by the system.
     # This means we may lack the `isystem` headers that the user expects.
@@ -393,15 +411,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
 
             if COMPAT_CAST_TO_YAML and (c := next(cursors, None)):
                 assert c.kind != clang.cindex.CursorKind.PARM_DECL
-                # Workaround for bug, with macro and `[`.
-                #   #define V 1
-                #   /* WTF */
-                #   int A[V];
-                # Will have token ['1', '/* WTF */', 'int', 'A', '[', 'V']
-                tokens = "".join(t2.spelling for t2 in c.get_tokens())
-                if "[" in tokens:
-                    tokens = tokens[tokens.rindex("[") + 1 :]
-                d["length"] = string_to_cast_format(tokens)
+                d["length"] = get_token_source(c)
             else:
                 d["length"] = t.element_count
 
@@ -485,9 +495,25 @@ def parse_var_decl(c: clang.cindex.Cursor):
         "type": parse_type(c.type, c.get_interesting_children()),
     } | parse_storage_class(c)
 
-    _, token_str = string_right_of_equal_token(c)
-    if token_str:
-        d["init"] = token_str
+    # Parse Init
+
+    def set_init_children_kind(kind_target):
+        if kind_target == "*":
+            g = c.get_children()
+        else:
+            g = (t2 for t2 in c.get_children() if t2.kind == kind_target)
+        if child := next(g, None):
+            d["init"] = get_token_source(child)
+
+    match c.type.kind:
+        case clang.cindex.TypeKind.CONSTANTARRAY:
+            set_init_children_kind(clang.cindex.CursorKind.INIT_LIST_EXPR)
+        case _ if THAPI_types.get(c.type.kind):
+            set_init_children_kind("*")
+        case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.POINTER:
+            set_init_children_kind(clang.cindex.CursorKind.UNEXPOSED_EXPR)
+        case _:  # pragma: no cover
+            raise NotImplementedError(f"parse_decl: {c.type.kind}")
 
     DECLARATIONS["declarations"].append(d)
 
