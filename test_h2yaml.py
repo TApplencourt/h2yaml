@@ -10,22 +10,6 @@ filenames = [str(p.with_suffix("")) for p in pathlib.Path("./tests/").glob("*.h"
 # Utils
 
 
-@pytest.fixture
-def mock_stdin_fd(monkeypatch):
-    r, w = os.pipe()
-
-    saved_stdin_fd = os.dup(sys.__stdin__.fileno())
-    os.dup2(r, sys.__stdin__.fileno())
-    os.close(r)
-
-    try:
-        yield w
-    finally:
-        # Restore original stdin
-        os.dup2(saved_stdin_fd, sys.__stdin__.fileno())
-        os.close(saved_stdin_fd)
-
-
 def run_main_and_get_yaml(capsys, argv):
     h2yaml.main(argv)
     data = capsys.readouterr()
@@ -115,19 +99,24 @@ def test_main_arguments_and_grouping(capsys):
     assert ref_yml == yml0 == yml1 == yml2
 
 
-def test_main_arguments_stdin(capsys, mock_stdin_fd):
+def test_main_arguments_stdin(capsys):
+    from io import StringIO
+    from io import BytesIO, TextIOWrapper
+
     file = "./tests/header_filter/foo.h"
 
     yml0 = run_main_and_get_yaml(capsys, [file, "--filter-header", "foo.h"])
 
     with open(file, "rb") as f:
-        mock_stdin_data = f.read()
-
-    os.write(mock_stdin_fd, mock_stdin_data)
-    os.close(mock_stdin_fd)
-
-    yml1 = run_main_and_get_yaml(
-        capsys,
-        ["-Wc,-xc", "-Wc,-I./tests/header_filter/", "--filter-header", "<stdin>", "-"],
-    )
+        sys.stdin = TextIOWrapper(f)
+        yml1 = run_main_and_get_yaml(
+            capsys,
+            [
+                "-Wc,-xc",
+                "-Wc,-I./tests/header_filter/",
+                "--filter-header",
+                "<stdin>",
+                "-",
+            ],
+        )
     assert yml0 == yml1

@@ -52,6 +52,20 @@ def cache_by_cursor(f: Callable):
     return memoizer
 
 
+class PreloadableCache:
+    def __init__(self, func):
+        self._cached_func = cache(func)
+        self._manual_cache = {}
+
+    def preload(self, key, value):
+        self._manual_cache[key] = value
+
+    def __call__(self, *args, **kwargs):
+        if args in self._manual_cache:
+            return self._manual_cache[args]
+        return self._cached_func(*args, **kwargs)
+
+
 def next_non_attribute(cursors):
     for c in cursors:
         if not c.kind.is_attribute():
@@ -102,19 +116,20 @@ def string_right_of_equal_token(c: clang.cindex.Cursor):
     return [True, tokens_str]
 
 
+@PreloadableCache
+def file_bytes(filename):
+    with open(filename, "rb") as f:
+        return f.read()
+
+
 def get_token_source(c: clang.cindex.Cursor):
     ext_s = c.extent.start
     ext_e = c.extent.end
     assert ext_s.file.name == ext_e.file.name
-    assert ext_s.line == ext_e.line
 
-    end = c.extent.end.column
-    begin = c.extent.start.column
+    bytes_ = file_bytes(c.location.file.name)
 
-    with open(c.location.file.name) as f:
-        lines = f.readlines()
-
-    str_ = lines[c.extent.start.line - 1][begin - 1 : end - 1]
+    str_ = bytes_[ext_s.offset : ext_e.offset].decode("utf-8")
     if COMPAT_CAST_TO_YAML:
         str_ = string_to_cast_format(str_)
     return str_
@@ -725,6 +740,11 @@ def h2yaml(
     canonicalization=False,
     compat_cast_to_yaml=False,
 ):
+    if file == "-":
+        data = sys.stdin.buffer.read()
+        file_bytes.preload(("<stdin>",), data)
+        unsaved_files = [("<stdin>", data)]
+
     system_args = [f"-I{p}" for p in SystemIncludes.paths]
     tu = clang.cindex.Index.create().parse(
         file,

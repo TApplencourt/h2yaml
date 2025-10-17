@@ -11,6 +11,11 @@ declarations:
   type:
     kind: int
     name: int
+- init: TOTO
+  name: A_
+  type:
+    kind: int
+    name: int
 functions:
 - name: bar
   params: []

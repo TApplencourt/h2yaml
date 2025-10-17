@@ -1,3 +1,9 @@
+declarations:
+- init: TOTO
+  name: A_
+  type:
+    kind: int
+    name: int
 functions:
 - name: foo
   params:
