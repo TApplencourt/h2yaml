@@ -9,8 +9,9 @@
 __version__ = "0.2.1"
 
 from functools import cache, cached_property, wraps
-from collections import deque
+from collections import deque, defaultdict
 from typing import Callable
+import bisect
 import sys
 import clang.cindex
 import yaml
@@ -52,6 +53,20 @@ def cache_by_cursor(f: Callable):
     return memoizer
 
 
+class PreloadableCache:
+    def __init__(self, func):
+        self._cached_func = cache(func)
+        self._manual_cache = {}
+
+    def preload(self, key, value):
+        self._manual_cache[key] = value
+
+    def __call__(self, *args, **kwargs):
+        if args in self._manual_cache:
+            return self._manual_cache[args]
+        return self._cached_func(*args, **kwargs)
+
+
 def next_non_attribute(cursors):
     for c in cursors:
         if not c.kind.is_attribute():
@@ -73,7 +88,7 @@ def string_to_cast_format(str_):
     # Add space after comma
     str_ = re.sub(r",\s*", ", ", str_)
     # Sanitize hex
-    str_ = re.sub(r"0x0*([0-9A-Fa-f]+)", lambda m: "0x" + m.group(1).lower(), str_)
+    str_ = re.sub(r"0[xX]0*([0-9A-Fa-f]+)", lambda m: "0x" + m.group(1).lower(), str_)
     # Add spaces between <<, +, -. Negative look behind to avoid `-1` to match
     str_ = re.sub(r"(?<!^)\s*(<<|\+|-)\s*", r" \1 ", str_)
     # Delete useless enclosing parenthesis
@@ -83,23 +98,36 @@ def string_to_cast_format(str_):
 
 @type_enforced.Enforcer
 def string_right_of_equal_token(c: clang.cindex.Cursor):
-    tokens_str, after_eq = "", False
-    for t in c.get_tokens():
-        if not (COMPAT_CAST_TO_YAML) and t.location.is_macro_expansion:
-            return [False, ""]
-
-        if after_eq:
-            tokens_str += t.spelling
-
-        if t.spelling == "=":
-            after_eq = True
-
-    if not tokens_str:
+    child = next(c.get_children(), None)
+    if not child:
         return [True, ""]
 
+    if not (COMPAT_CAST_TO_YAML) and c.is_macro_expansion:
+        return [False, ""]
+
+    tokens_str = get_token_source(child)
     if COMPAT_CAST_TO_YAML:
         tokens_str = string_to_cast_format(tokens_str)
     return [True, tokens_str]
+
+
+@PreloadableCache
+def file_bytes(filename):
+    with open(filename, "rb") as f:
+        return f.read()
+
+
+def get_token_source(c: clang.cindex.Cursor):
+    ext_s = c.extent.start
+    ext_e = c.extent.end
+    assert ext_s.file.name == ext_e.file.name
+
+    bytes_ = file_bytes(c.location.file.name)
+
+    str_ = bytes_[ext_s.offset : ext_e.offset].decode("utf-8")
+    if COMPAT_CAST_TO_YAML:
+        str_ = string_to_cast_format(str_)
+    return str_
 
 
 class SystemIncludes:
@@ -172,7 +200,7 @@ def _is_in_interesting_header(self):
         return False
 
     # Skip Macro
-    if not (self.file):
+    if not self.file:
         return False
 
     # Skip standard library headers
@@ -183,18 +211,28 @@ def _is_in_interesting_header(self):
     return re.search(PATTERN_INTERESTING_HEADER, basename)
 
 
-@cached_property
-def _is_macro_expansion(self):
-    """Return True if this SourceLocation was produced by macro expansion."""
-    return str(self) in MACRO_INSTANTIATION_LOCATION
-
-
 ccs = clang.cindex.SourceLocation
 ccs.is_in_interesting_header = _is_in_interesting_header
 # TypeError: Cannot use cached_property instance without calling __set_name__ on it.
 ccs.is_in_interesting_header.__set_name__(ccs, "is_in_interesting_header")
-ccs.is_macro_expansion = _is_macro_expansion
-ccs.is_macro_expansion.__set_name__(ccs, "is_macro_expansion")
+
+
+@cached_property
+def _is_macro_expansion(self):
+    """Return True if this SourceLocation was produced by macro expansion."""
+    l = MACRO_INSTANTIATION_LOCATION[self.location.file.name]
+    if not l:
+        return False
+
+    idx = bisect.bisect(l, (self.extent.start.offset, 0))
+    if idx == len(l):
+        return False
+
+    return self.extent.end.offset >= l[idx][1]
+
+
+clang.cindex.Cursor.is_macro_expansion = _is_macro_expansion
+clang.cindex.Cursor.is_macro_expansion.__set_name__(ccs, "is_macro_expansion")
 
 
 def _is_anonymous2(self):
@@ -225,6 +263,9 @@ def _is_anonymous2(self):
             return self.is_anonymous()
 
 
+clang.cindex.Cursor.is_anonymous2 = _is_anonymous2
+
+
 def _is_forward_declaration(self):
     # Workaround for a libclang quirk:
     # Typedefs referring to forward-declared structs may appear as if they point to the final definition.
@@ -235,6 +276,9 @@ def _is_forward_declaration(self):
     # https://joshpeterson.github.io/blog/2017/identifying-a-forward-declaration-with-libclang/
     # Need two tests, as cursors cannot be compared to None
     return self.get_definition() is None or self.get_definition() != self
+
+
+clang.cindex.Cursor.is_forward_declaration = _is_forward_declaration
 
 
 @cache
@@ -269,15 +313,15 @@ def _is_in_function_decl(self, origin=None):
             return self.lexical_parent.is_in_function_decl(origin)
 
 
+clang.cindex.Cursor.is_in_function_decl = _is_in_function_decl
+
+
 def _get_interesting_children(self):
     for c in self.get_children():
         if self.location.is_in_interesting_header:
             yield c
 
 
-clang.cindex.Cursor.is_anonymous2 = _is_anonymous2
-clang.cindex.Cursor.is_forward_declaration = _is_forward_declaration
-clang.cindex.Cursor.is_in_function_decl = _is_in_function_decl
 clang.cindex.Cursor.get_interesting_children = _get_interesting_children
 
 
@@ -393,15 +437,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
 
             if COMPAT_CAST_TO_YAML and (c := next(cursors, None)):
                 assert c.kind != clang.cindex.CursorKind.PARM_DECL
-                # Workaround for bug, with macro and `[`.
-                #   #define V 1
-                #   /* WTF */
-                #   int A[V];
-                # Will have token ['1', '/* WTF */', 'int', 'A', '[', 'V']
-                tokens = "".join(t2.spelling for t2 in c.get_tokens())
-                if "[" in tokens:
-                    tokens = tokens[tokens.rindex("[") + 1 :]
-                d["length"] = string_to_cast_format(tokens)
+                d["length"] = get_token_source(c)
             else:
                 d["length"] = t.element_count
 
@@ -440,7 +476,12 @@ def parse_decl(c: clang.cindex.Cursor, cursors: Callable | None = None):
         case clang.cindex.CursorKind.VAR_DECL:
             return parse_var_decl(c)
         case clang.cindex.CursorKind.MACRO_INSTANTIATION:
-            MACRO_INSTANTIATION_LOCATION.add(str(c.location))
+            ext_s = c.extent.start
+            ext_e = c.extent.end
+            bisect.insort(
+                MACRO_INSTANTIATION_LOCATION[c.location.file.name],
+                (ext_s.offset, ext_e.offset),
+            )
             return
         case (
             clang.cindex.CursorKind.MACRO_DEFINITION
@@ -485,9 +526,25 @@ def parse_var_decl(c: clang.cindex.Cursor):
         "type": parse_type(c.type, c.get_interesting_children()),
     } | parse_storage_class(c)
 
-    _, token_str = string_right_of_equal_token(c)
-    if token_str:
-        d["init"] = token_str
+    # Parse Init
+
+    def set_init_children_kind(kind_target):
+        if kind_target == "*":
+            g = c.get_children()
+        else:
+            g = (t2 for t2 in c.get_children() if t2.kind == kind_target)
+        if child := next(g, None):
+            d["init"] = get_token_source(child)
+
+    match c.type.kind:
+        case clang.cindex.TypeKind.CONSTANTARRAY:
+            set_init_children_kind(clang.cindex.CursorKind.INIT_LIST_EXPR)
+        case _ if THAPI_types.get(c.type.kind):
+            set_init_children_kind("*")
+        case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.POINTER:
+            set_init_children_kind(clang.cindex.CursorKind.UNEXPOSED_EXPR)
+        case _:  # pragma: no cover
+            raise NotImplementedError(f"parse_decl: {c.type.kind}")
 
     DECLARATIONS["declarations"].append(d)
 
@@ -657,7 +714,7 @@ def parse_translation_unit(
     }
 
     global MACRO_INSTANTIATION_LOCATION
-    MACRO_INSTANTIATION_LOCATION = set()
+    MACRO_INSTANTIATION_LOCATION = defaultdict(list)
 
     # Struct and Union can be self-referential,
     # so we need to track them to avoid recursion problem
@@ -699,6 +756,11 @@ def h2yaml(
     canonicalization=False,
     compat_cast_to_yaml=False,
 ):
+    if file == "-":
+        data = sys.stdin.buffer.read()
+        file_bytes.preload(("<stdin>",), data)
+        unsaved_files = [("<stdin>", data)]
+
     system_args = [f"-I{p}" for p in SystemIncludes.paths]
     tu = clang.cindex.Index.create().parse(
         file,

@@ -1,17 +1,21 @@
 declarations:
-- name: a0
+- init: '1'
+  name: a0
   type:
     kind: int
     name: int
-- name: a1
+- init: '2'
+  name: a1
   type:
     kind: custom_type
     name: uint64_t
-- name: a2
+- init: '3'
+  name: a2
   type:
     kind: custom_type
     name: size_t
-- name: a3
+- init: 'NULL'
+  name: a3
   type:
     kind: pointer
     type:
@@ -86,6 +90,15 @@ declarations:
       const: true
       kind: int
       name: int
+- init: '{}'
+  name: a9_init
+  type:
+    kind: array
+    length: 0
+    type:
+      const: true
+      kind: int
+      name: int
 - name: a10
   type:
     kind: array
@@ -127,7 +140,7 @@ declarations:
       type:
         kind: int
         name: int
-- init: '1'
+- init: '4'
   name: a
   storage: static
   type:

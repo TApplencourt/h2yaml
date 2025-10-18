@@ -1,4 +1,27 @@
+declarations:
+- name: A
+  type:
+    kind: array
+    length: 12
+    type:
+      kind: int
+      name: int
+- init: TOTO
+  name: B
+  type:
+    kind: int
+    name: int
+- init: TOTO
+  name: A_
+  type:
+    kind: int
+    name: int
 functions:
+- name: bar
+  params: []
+  type:
+    kind: void
+    name: void
 - name: foo
   params:
   - name: a
@@ -8,3 +31,10 @@ functions:
   type:
     kind: void
     name: void
+structs:
+- members:
+  - name: x
+    type:
+      kind: int
+      name: int
+  name: A0

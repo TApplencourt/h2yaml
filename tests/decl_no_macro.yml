@@ -1,0 +1,10 @@
+declarations:
+- init: '12'
+  name: a
+  type:
+    kind: int
+    name: int
+enums:
+- members:
+  - name: A
+    val: '12'
