@@ -98,8 +98,6 @@ def string_to_cast_format(str_):
 
 @type_enforced.Enforcer
 def string_right_of_equal_token(c: clang.cindex.Cursor):
-    tokens_str, after_eq = "", False
-
     child = next(c.get_children(), None)
     if not child:
         return [True, ""]
