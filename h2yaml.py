@@ -229,9 +229,13 @@ def _is_macro_expansion(self):
 
     idx = bisect.bisect(l, (self.extent.start.offset, 0))
     if idx == len(l):
-        return False
+        # My begin is greater than the end of the last macro.
+        # All good, no overlapp
+        return not (self.extent.start.offset > l[-1][1])
 
-    return self.extent.end.offset >= l[idx][1]
+    # My end is lower than the next macro start
+    # All good, no overlap
+    return not (self.extent.end.offset < l[idx][0])
 
 
 clang.cindex.Cursor.is_macro_expansion = _is_macro_expansion
