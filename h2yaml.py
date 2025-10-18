@@ -85,6 +85,9 @@ def h2yaml_warning(c: clang.cindex.Cursor, msg):
 
 def string_to_cast_format(str_):
     # /!\ Not super robust
+
+    # Remove all space
+    str_ = str_.replace(" ", "")
     # Add space after comma
     str_ = re.sub(r",\s*", ", ", str_)
     # Sanitize hex
