@@ -44,7 +44,7 @@ union S1 {
     C4 = 1 << 2,
     C5 = C1 + C4,
     C6,
-    C7 = MAX_SIZE + 1
+    C7 = 1 + MAX_SIZE + 1
   } bar;
 };
 

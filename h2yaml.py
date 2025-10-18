@@ -9,8 +9,9 @@
 __version__ = "0.2.1"
 
 from functools import cache, cached_property, wraps
-from collections import deque
+from collections import deque, defaultdict
 from typing import Callable
+import bisect
 import sys
 import clang.cindex
 import yaml
@@ -98,19 +99,15 @@ def string_to_cast_format(str_):
 @type_enforced.Enforcer
 def string_right_of_equal_token(c: clang.cindex.Cursor):
     tokens_str, after_eq = "", False
-    for t in c.get_tokens():
-        if not (COMPAT_CAST_TO_YAML) and t.location.is_macro_expansion:
-            return [False, ""]
 
-        if after_eq:
-            tokens_str += t.spelling
-
-        if t.spelling == "=":
-            after_eq = True
-
-    if not tokens_str:
+    child = next(c.get_children(), None)
+    if not child:
         return [True, ""]
 
+    if not (COMPAT_CAST_TO_YAML) and c.is_macro_expansion:
+        return [False, ""]
+
+    tokens_str = get_token_source(child)
     if COMPAT_CAST_TO_YAML:
         tokens_str = string_to_cast_format(tokens_str)
     return [True, tokens_str]
@@ -205,7 +202,7 @@ def _is_in_interesting_header(self):
         return False
 
     # Skip Macro
-    if not (self.file):
+    if not self.file:
         return False
 
     # Skip standard library headers
@@ -216,18 +213,28 @@ def _is_in_interesting_header(self):
     return re.search(PATTERN_INTERESTING_HEADER, basename)
 
 
-@cached_property
-def _is_macro_expansion(self):
-    """Return True if this SourceLocation was produced by macro expansion."""
-    return str(self) in MACRO_INSTANTIATION_LOCATION
-
-
 ccs = clang.cindex.SourceLocation
 ccs.is_in_interesting_header = _is_in_interesting_header
 # TypeError: Cannot use cached_property instance without calling __set_name__ on it.
 ccs.is_in_interesting_header.__set_name__(ccs, "is_in_interesting_header")
-ccs.is_macro_expansion = _is_macro_expansion
-ccs.is_macro_expansion.__set_name__(ccs, "is_macro_expansion")
+
+
+@cached_property
+def _is_macro_expansion(self):
+    """Return True if this SourceLocation was produced by macro expansion."""
+    l = MACRO_INSTANTIATION_LOCATION[self.location.file.name]
+    if not l:
+        return False
+
+    idx = bisect.bisect(l, (self.extent.start.offset, 0))
+    if idx == len(l):
+        return False
+
+    return self.extent.end.offset >= l[idx][1]
+
+
+clang.cindex.Cursor.is_macro_expansion = _is_macro_expansion
+clang.cindex.Cursor.is_macro_expansion.__set_name__(ccs, "is_macro_expansion")
 
 
 def _is_anonymous2(self):
@@ -258,6 +265,9 @@ def _is_anonymous2(self):
             return self.is_anonymous()
 
 
+clang.cindex.Cursor.is_anonymous2 = _is_anonymous2
+
+
 def _is_forward_declaration(self):
     # Workaround for a libclang quirk:
     # Typedefs referring to forward-declared structs may appear as if they point to the final definition.
@@ -268,6 +278,9 @@ def _is_forward_declaration(self):
     # https://joshpeterson.github.io/blog/2017/identifying-a-forward-declaration-with-libclang/
     # Need two tests, as cursors cannot be compared to None
     return self.get_definition() is None or self.get_definition() != self
+
+
+clang.cindex.Cursor.is_forward_declaration = _is_forward_declaration
 
 
 @cache
@@ -302,15 +315,15 @@ def _is_in_function_decl(self, origin=None):
             return self.lexical_parent.is_in_function_decl(origin)
 
 
+clang.cindex.Cursor.is_in_function_decl = _is_in_function_decl
+
+
 def _get_interesting_children(self):
     for c in self.get_children():
         if self.location.is_in_interesting_header:
             yield c
 
 
-clang.cindex.Cursor.is_anonymous2 = _is_anonymous2
-clang.cindex.Cursor.is_forward_declaration = _is_forward_declaration
-clang.cindex.Cursor.is_in_function_decl = _is_in_function_decl
 clang.cindex.Cursor.get_interesting_children = _get_interesting_children
 
 
@@ -465,7 +478,12 @@ def parse_decl(c: clang.cindex.Cursor, cursors: Callable | None = None):
         case clang.cindex.CursorKind.VAR_DECL:
             return parse_var_decl(c)
         case clang.cindex.CursorKind.MACRO_INSTANTIATION:
-            MACRO_INSTANTIATION_LOCATION.add(str(c.location))
+            ext_s = c.extent.start
+            ext_e = c.extent.end
+            bisect.insort(
+                MACRO_INSTANTIATION_LOCATION[c.location.file.name],
+                (ext_s.offset, ext_e.offset),
+            )
             return
         case (
             clang.cindex.CursorKind.MACRO_DEFINITION
@@ -698,7 +716,7 @@ def parse_translation_unit(
     }
 
     global MACRO_INSTANTIATION_LOCATION
-    MACRO_INSTANTIATION_LOCATION = set()
+    MACRO_INSTANTIATION_LOCATION = defaultdict(list)
 
     # Struct and Union can be self-referential,
     # so we need to track them to avoid recursion problem
