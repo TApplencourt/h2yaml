@@ -8,8 +8,8 @@
 
 __version__ = "0.2.1"
 
-from functools import cache, cached_property, wraps
-from collections import deque, defaultdict
+from functools import cache, cached_property
+from collections import deque
 from typing import Callable
 import bisect
 import sys
@@ -36,21 +36,6 @@ except ModuleNotFoundError:  # pragma: no cover
 class classproperty(property):
     def __get__(self, owner_self, owner_cls):
         return self.fget(owner_cls)
-
-
-def cache_by_cursor(f: Callable):
-    """Cache based only on the cursor argument.
-    WARNING: All other arguments are ignored in cache lookup."""
-
-    cache = {}
-
-    @wraps(f)
-    def memoizer(cursor, *args, **kwargs):
-        if cursor not in cache:
-            cache[cursor] = f(cursor, *args, **kwargs)
-        return cache[cursor]
-
-    return memoizer
 
 
 class PreloadableCache:
@@ -83,56 +68,6 @@ def h2yaml_warning(c: clang.cindex.Cursor, msg):
     )
 
 
-def string_to_cast_format(str_):
-    # /!\ Not super robust
-
-    # Remove all space
-    str_ = str_.replace(" ", "")
-    # Add space after comma
-    str_ = re.sub(r",\s*", ", ", str_)
-    # Sanitize hex
-    str_ = re.sub(r"0[xX]0*([0-9A-Fa-f]+)", lambda m: "0x" + m.group(1).lower(), str_)
-    # Add spaces between <<, +, -. Negative look behind to avoid `-1` to match
-    str_ = re.sub(r"(?<!^)\s*(<<|\+|-)\s*", r" \1 ", str_)
-    # Delete useless enclosing parenthesis
-    str_ = re.sub(r"^\((.*)\)$", r"\1", str_)
-    return str_
-
-
-@type_enforced.Enforcer
-def string_right_of_equal_token(c: clang.cindex.Cursor):
-    child = next(c.get_children(), None)
-    if not child:
-        return [True, ""]
-
-    if not (COMPAT_CAST_TO_YAML) and c.is_macro_expansion:
-        return [False, ""]
-
-    tokens_str = get_token_source(child)
-    if COMPAT_CAST_TO_YAML:
-        tokens_str = string_to_cast_format(tokens_str)
-    return [True, tokens_str]
-
-
-@PreloadableCache
-def file_bytes(filename):
-    with open(filename, "rb") as f:
-        return f.read()
-
-
-def get_token_source(c: clang.cindex.Cursor):
-    ext_s = c.extent.start
-    ext_e = c.extent.end
-    assert ext_s.file.name == ext_e.file.name
-
-    bytes_ = file_bytes(c.location.file.name)
-
-    str_ = bytes_[ext_s.offset : ext_e.offset].decode("utf-8")
-    if COMPAT_CAST_TO_YAML:
-        str_ = string_to_cast_format(str_)
-    return str_
-
-
 class SystemIncludes:
     # Our libclang version may differ from the "normal" compiler used by the system.
     # This means we may lack the `isystem` headers that the user expects.
@@ -155,9 +90,9 @@ class SystemIncludes:
 
 
 @type_enforced.Enforcer
-def check_diagnostic(t: clang.cindex.TranslationUnit):
+def check_diagnostic(tu: clang.cindex.TranslationUnit):
     error = False
-    for diagnostic in t.diagnostics:
+    for diagnostic in tu.diagnostics:
         print(f"clang diagnostic: {diagnostic}", file=sys.stderr)
         # diagnostic message can contain "error" or "warning"
         error |= "error" in str(diagnostic)
@@ -169,6 +104,37 @@ def check_diagnostic(t: clang.cindex.TranslationUnit):
 #   /   |  ._   _|  _       |_   _|_  _  ._   _ o  _  ._
 #   \_ _|_ | | (_| (/_ ><   |_ >< |_ (/_ | | _> | (_) | |
 #
+def attach_to(target):
+    """
+    Decorator that attaches a function or descriptor (e.g. property, cached_property)
+    to a target class.
+    Bind `_FOO` to `target.FOO`
+
+    Example:
+        @attach_to(clang.cindex.Cursor)
+        @cached_property
+        def _my_method(self): ...
+    """
+
+    def decorator(obj):
+        # Get the name for function(__name__), cached property(func), and property(fget)
+        try:
+            attr_name = obj.__name__
+        except AttributeError:
+            source = next(o for c in ("func", "fget") if (o := getattr(obj, c, None)))
+            attr_name = source.__name__
+        finally:
+            attr_name = re.sub(r"^_", "", attr_name)
+            setattr(target, attr_name, obj)
+
+        # TypeError: Cannot use cached_property instance without calling __set_name__ on it.
+        if hasattr(obj, "__set_name__"):
+            obj.__set_name__(target, attr_name)
+
+        return obj
+
+    return decorator
+
 
 # Monkey-patch for missing __hash__ in clang.cindex.Cursor
 # See upstream: https://github.com/llvm/llvm-project/pull/132377
@@ -188,13 +154,24 @@ except AttributeError:  # pragma: no cover
         clang.cindex.Cursor
     ]
 
+    @attach_to(clang.cindex.Cursor)
     def _is_function_inlined(self):
         return clang.cindex.conf.lib.clang_Cursor_isFunctionInlined(self)
 
-    clang.cindex.Cursor.is_function_inlined = _is_function_inlined
+
+def find_cursors(cursor, kind, depth=-1, include_root=False):
+    if include_root and (kind == "*" or cursor.kind == kind):
+        yield cursor
+
+    if depth == 0:
+        return
+
+    for child in cursor.get_interesting_children():
+        yield from find_cursors(child, kind, depth - 1, include_root=True)
 
 
-@cached_property
+@attach_to(clang.cindex.SourceLocation)
+@property
 def _is_in_interesting_header(self):
     # Note: This function uses the global variable PATTERN_INTERESTING_HEADER.
 
@@ -214,23 +191,32 @@ def _is_in_interesting_header(self):
     return re.search(PATTERN_INTERESTING_HEADER, basename)
 
 
-ccs = clang.cindex.SourceLocation
-ccs.is_in_interesting_header = _is_in_interesting_header
-# TypeError: Cannot use cached_property instance without calling __set_name__ on it.
-ccs.is_in_interesting_header.__set_name__(ccs, "is_in_interesting_header")
+@cache
+@type_enforced.Enforcer
+def _get_macro_instantiation_interval(tu: clang.cindex.TranslationUnit):
+    l = []
+    for c in find_cursors(tu.cursor, clang.cindex.CursorKind.MACRO_INSTANTIATION, 1):
+        ext_s, ext_e = c.extent.start, c.extent.end
+        assert ext_s.file.name == ext_e.file.name
+        bisect.insort(
+            l,
+            (ext_s.offset, ext_e.offset),
+        )
+    return l
 
 
+@attach_to(clang.cindex.Cursor)
 @cached_property
 def _is_macro_expansion(self):
-    """Return True if this SourceLocation was produced by macro expansion."""
-    l = MACRO_INSTANTIATION_LOCATION[self.location.file.name]
+    """Return True if this Cursor was produced by macro expansion."""
+    l = _get_macro_instantiation_interval(self.translation_unit)
     if not l:
         return False
 
     idx = bisect.bisect(l, (self.extent.start.offset, 0))
     if idx == len(l):
         # My begin is greater than the end of the last macro.
-        # All good, no overlapp
+        # All good, no overlap
         return not (self.extent.start.offset > l[-1][1])
 
     # My end is lower than the next macro start
@@ -238,10 +224,7 @@ def _is_macro_expansion(self):
     return not (self.extent.end.offset < l[idx][0])
 
 
-clang.cindex.Cursor.is_macro_expansion = _is_macro_expansion
-clang.cindex.Cursor.is_macro_expansion.__set_name__(ccs, "is_macro_expansion")
-
-
+@attach_to(clang.cindex.Cursor)
 def _is_anonymous2(self):
     def is_in_usr(targets):
         return any(t in self.get_usr() for t in targets)
@@ -270,9 +253,7 @@ def _is_anonymous2(self):
             return self.is_anonymous()
 
 
-clang.cindex.Cursor.is_anonymous2 = _is_anonymous2
-
-
+@attach_to(clang.cindex.Cursor)
 def _is_forward_declaration(self):
     # Workaround for a libclang quirk:
     # Typedefs referring to forward-declared structs may appear as if they point to the final definition.
@@ -285,24 +266,19 @@ def _is_forward_declaration(self):
     return self.get_definition() is None or self.get_definition() != self
 
 
-clang.cindex.Cursor.is_forward_declaration = _is_forward_declaration
-
-
 @cache
-def _all_enums_in_param(self):
-    def find_cursors(cursor, kind):
-        if cursor.kind == kind:
-            yield cursor
-        for child in cursor.get_children():
-            yield from find_cursors(child, kind)
+@type_enforced.Enforcer
+def _all_enums_in_param(c: clang.cindex.Cursor):
+    assert c.kind == clang.cindex.CursorKind.TRANSLATION_UNIT
 
     return {
         enum
-        for param in find_cursors(self, clang.cindex.CursorKind.PARM_DECL)
+        for param in find_cursors(c, clang.cindex.CursorKind.PARM_DECL)
         for enum in find_cursors(param, clang.cindex.CursorKind.ENUM_DECL)
     }
 
 
+@attach_to(clang.cindex.Cursor)
 def _is_in_function_decl(self, origin=None):
     if origin is None:
         origin = self
@@ -320,16 +296,46 @@ def _is_in_function_decl(self, origin=None):
             return self.lexical_parent.is_in_function_decl(origin)
 
 
-clang.cindex.Cursor.is_in_function_decl = _is_in_function_decl
+@PreloadableCache
+def _file_bytes(filename):
+    with open(filename, "rb") as f:
+        return f.read()
 
 
+@attach_to(clang.cindex.Cursor)
+@property
+def extent_text(self):
+    def string_to_cast_format(str_):
+        # Remove all space
+        str_ = str_.replace(" ", "")
+        # Add space after comma
+        str_ = re.sub(r",\s*", ", ", str_)
+        # Sanitize hex
+        str_ = re.sub(
+            r"0[xX]0*([0-9A-Fa-f]+)", lambda m: "0x" + m.group(1).lower(), str_
+        )
+        # Add spaces between <<, +, -. Negative look behind to avoid `-1` to match
+        str_ = re.sub(r"(?<!^)\s*(<<|\+|-)\s*", r" \1 ", str_)
+        # Delete useless enclosing parenthesis
+        str_ = re.sub(r"^\((.*)\)$", r"\1", str_)
+        return str_
+
+    ext_s, ext_e = self.extent.start, self.extent.end
+    assert ext_s.file.name == ext_e.file.name
+
+    bytes_ = _file_bytes(self.location.file.name)
+
+    str_ = bytes_[ext_s.offset : ext_e.offset].decode("utf-8")
+    if COMPAT_CAST_TO_YAML:
+        str_ = string_to_cast_format(str_)
+    return str_
+
+
+@attach_to(clang.cindex.Cursor)
 def _get_interesting_children(self):
     for c in self.get_children():
-        if self.location.is_in_interesting_header:
+        if c.location.is_in_interesting_header:
             yield c
-
-
-clang.cindex.Cursor.get_interesting_children = _get_interesting_children
 
 
 #    _                 __                         _
@@ -436,7 +442,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
             # Move the cursors to keep it in sync which children
             next_non_attribute(cursors)
             decl = t.get_declaration()
-            return parse_decl(decl, decl.get_interesting_children()) | d_qualified
+            return parse_decl(decl) | d_qualified
         case clang.cindex.TypeKind.RECORD:
             return parse_decl(t.get_declaration())
         case clang.cindex.TypeKind.CONSTANTARRAY:
@@ -444,7 +450,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
 
             if COMPAT_CAST_TO_YAML and (c := next(cursors, None)):
                 assert c.kind != clang.cindex.CursorKind.PARM_DECL
-                d["length"] = get_token_source(c)
+                d["length"] = c.extent_text
             else:
                 d["length"] = t.element_count
 
@@ -468,7 +474,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
 #   |  (_| | _> (/_   |_/ (/_ (_ |
 #
 @type_enforced.Enforcer
-def parse_decl(c: clang.cindex.Cursor, cursors: Callable | None = None):
+def parse_decl(c: clang.cindex.Cursor):
     match k := c.kind:
         case clang.cindex.CursorKind.STRUCT_DECL:
             return {"kind": "struct"} | parse_struct_decl(c)
@@ -477,21 +483,14 @@ def parse_decl(c: clang.cindex.Cursor, cursors: Callable | None = None):
         case clang.cindex.CursorKind.ENUM_DECL:
             return {"kind": "enum"} | parse_enum_decl(c)
         case clang.cindex.CursorKind.TYPEDEF_DECL:
-            return {"kind": "custom_type"} | parse_typedef_decl(c, cursors)
+            return {"kind": "custom_type"} | parse_typedef_decl(c)
         case clang.cindex.CursorKind.FUNCTION_DECL:
-            return parse_function_decl(c, cursors)
+            return parse_function_decl(c)
         case clang.cindex.CursorKind.VAR_DECL:
             return parse_var_decl(c)
-        case clang.cindex.CursorKind.MACRO_INSTANTIATION:
-            ext_s = c.extent.start
-            ext_e = c.extent.end
-            bisect.insort(
-                MACRO_INSTANTIATION_LOCATION[c.location.file.name],
-                (ext_s.offset, ext_e.offset),
-            )
-            return
         case (
-            clang.cindex.CursorKind.MACRO_DEFINITION
+            clang.cindex.CursorKind.MACRO_INSTANTIATION
+            | clang.cindex.CursorKind.MACRO_DEFINITION
             | clang.cindex.CursorKind.INCLUSION_DIRECTIVE
         ):
             return
@@ -504,13 +503,15 @@ def parse_decl(c: clang.cindex.Cursor, cursors: Callable | None = None):
 #    | \/ |_) (/_ (_| (/_ |    |_/ (/_ (_ |
 #      /  |
 # `cursors` is an iterator, so impossible to cache
-@cache_by_cursor
+@cache
 @type_enforced.Enforcer
-def parse_typedef_decl(c: clang.cindex.Cursor, cursors: Callable):
+def parse_typedef_decl(c: clang.cindex.Cursor):
     d_name = {"name": c.spelling}
     # Only call `underlying_typedef_type` if we are interested by the header
     if not (c.is_forward_declaration()) and c.location.is_in_interesting_header:
-        d_type = {"type": parse_type(c.underlying_typedef_type, cursors)}
+        d_type = {
+            "type": parse_type(c.underlying_typedef_type, c.get_interesting_children())
+        }
         DECLARATIONS["typedefs"].append(d_name | d_type)
     return d_name
 
@@ -533,25 +534,18 @@ def parse_var_decl(c: clang.cindex.Cursor):
         "type": parse_type(c.type, c.get_interesting_children()),
     } | parse_storage_class(c)
 
-    # Parse Init
-
-    def set_init_children_kind(kind_target):
-        if kind_target == "*":
-            g = c.get_children()
-        else:
-            g = (t2 for t2 in c.get_children() if t2.kind == kind_target)
-        if child := next(g, None):
-            d["init"] = get_token_source(child)
-
     match c.type.kind:
-        case clang.cindex.TypeKind.CONSTANTARRAY:
-            set_init_children_kind(clang.cindex.CursorKind.INIT_LIST_EXPR)
         case _ if THAPI_types.get(c.type.kind):
-            set_init_children_kind("*")
+            kind_target = "*"
+        case clang.cindex.TypeKind.CONSTANTARRAY:
+            kind_target = clang.cindex.CursorKind.INIT_LIST_EXPR
         case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.POINTER:
-            set_init_children_kind(clang.cindex.CursorKind.UNEXPOSED_EXPR)
+            kind_target = clang.cindex.CursorKind.UNEXPOSED_EXPR
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_decl: {c.type.kind}")
+
+    if c2 := next(find_cursors(c, kind_target), None):
+        d["init"] = c2.extent_text
 
     DECLARATIONS["declarations"].append(d)
 
@@ -561,7 +555,7 @@ def parse_var_decl(c: clang.cindex.Cursor):
 #   | |_| | | (_  |_ | (_) | |   |_/ (/_ (_ |
 #
 @type_enforced.Enforcer
-def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
+def parse_function_decl(c: clang.cindex.Cursor):
     if c.is_definition():
         h2yaml_warning(
             c, f"`{c.spelling}` is a function definition and will be ignored."
@@ -579,9 +573,9 @@ def parse_function_decl(c: clang.cindex.Cursor, cursors: Callable):
                 c,
                 f"`{c.spelling}` defines a function with no parameters, consider specifying `void`.",
             )
-            d |= parse_function_noproto_type(c.type, cursors)
+            d |= parse_function_noproto_type(c.type, c.get_interesting_children())
         case clang.cindex.TypeKind.FUNCTIONPROTO:
-            d |= parse_function_proto_type(c.type, cursors)
+            d |= parse_function_proto_type(c.type, c.get_interesting_children())
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_function_decl: {t}")
 
@@ -666,13 +660,16 @@ def parse_enum_decl(c: clang.cindex.Cursor):
 
         d_name = {"name": c.spelling}
 
-        f, tokens_str = string_right_of_equal_token(c)
-        if not f:
+        # If inside a macro, fall back to enum value
+        if not COMPAT_CAST_TO_YAML and c.is_macro_expansion:
             return d_name | {"val": c.enum_value}
-        if not tokens_str:
-            return d_name
 
-        return d_name | {"val": tokens_str}
+        child = next(c.get_children(), None)
+        # Nothing right to `=` sign
+        if not child:
+            return d_name
+        # All good, print the text
+        return d_name | {"val": child.extent_text}
 
     d_members = {
         "members": [parse_enum_constant_del(f) for f in c.get_interesting_children()]
@@ -720,9 +717,6 @@ def parse_translation_unit(
         for k in ("structs", "unions", "typedefs", "declarations", "functions", "enums")
     }
 
-    global MACRO_INSTANTIATION_LOCATION
-    MACRO_INSTANTIATION_LOCATION = defaultdict(list)
-
     # Struct and Union can be self-referential,
     # so we need to track them to avoid recursion problem
     global CACHE_STRUCT_UNION_DECL_REC
@@ -740,11 +734,9 @@ def parse_translation_unit(
     global COMPAT_CAST_TO_YAML
     COMPAT_CAST_TO_YAML = compat_cast_to_yaml
 
-    user_children = (c for c in t.get_children() if c.location.is_in_interesting_header)
-
-    for c in user_children:
+    for c in t.get_interesting_children():
         # Warning: will modify `DECLARATIONS` global variable
-        parse_decl(c, c.get_interesting_children())
+        parse_decl(c)
 
     assert len(CACHE_STRUCT_UNION_DECL_REC) == 0
     return {k: v for k, v in DECLARATIONS.items() if v}
@@ -765,7 +757,7 @@ def h2yaml(
 ):
     if file == "-":
         data = sys.stdin.buffer.read()
-        file_bytes.preload(("<stdin>",), data)
+        _file_bytes.preload(("<stdin>",), data)
         unsaved_files = [("<stdin>", data)]
 
     system_args = [f"-I{p}" for p in SystemIncludes.paths]
