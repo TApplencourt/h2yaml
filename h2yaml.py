@@ -85,6 +85,7 @@ class SystemIncludes:
         match = re.search(regex, text, re.DOTALL)
         return match.group(1).split()
 
+
 @type_enforced.Enforcer
 def check_diagnostic(tu: clang.cindex.TranslationUnit):
     error = False
