@@ -76,16 +76,14 @@ class SystemIncludes:
             return []
 
         text = subprocess.check_output(
-            f"{cc} -E -Wp,-v -xc /dev/null",
-            shell=True,
+            [cc, "-E", "-Wp,-v", "-xc", "/dev/null"],
             text=True,
             stderr=subprocess.STDOUT,
         )
-        start_string = "#include <...> search starts here:"
-        start_index = text.find(start_string) + len(start_string)
-        end_index = text.find("End of search list.", start_index)
-        return text[start_index:end_index].split()
 
+        regex = r"#include <...> search starts here:(.*?)End of search list"
+        match = re.search(regex, text, re.DOTALL)
+        return match.group(1).split()
 
 @type_enforced.Enforcer
 def check_diagnostic(tu: clang.cindex.TranslationUnit):
