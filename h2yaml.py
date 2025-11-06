@@ -6,7 +6,7 @@
 # ]
 # ///
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from functools import cache, cached_property
 from collections import deque
@@ -19,6 +19,11 @@ import os
 import subprocess
 import re
 import argparse
+
+try:
+    from yaml import CDumper as Dumper
+except ImportError:  # pragma: no cover
+    from yaml import Dumper
 
 try:
     import type_enforced
@@ -768,7 +773,7 @@ def h2yaml(
     decls = parse_translation_unit(
         tu.cursor, pattern, canonicalization, compat_cast_to_yaml
     )
-    return yaml.dump(decls, Dumper=yaml.CDumper)
+    return yaml.dump(decls, Dumper=Dumper)
 
 
 def split_clang_args(argv):
