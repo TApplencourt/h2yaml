@@ -106,6 +106,13 @@ def check_diagnostic(tu: clang.cindex.TranslationUnit):
 #   /   |  ._   _|  _       |_   _|_  _  ._   _ o  _  ._
 #   \_ _|_ | | (_| (/_ ><   |_ >< |_ (/_ | | _> | (_) | |
 #
+if e := os.getenv("LIBCLANG_PATH"):  # pragma: no cover
+    clang.cindex.Config.set_library_path(e)
+
+if e := os.getenv("LIBCLANG_FILE"):  # pragma: no cover
+    clang.cindex.Config.set_library_file(e)
+
+
 def attach_to(target):
     """
     Decorator that attaches a function or descriptor (e.g. property, cached_property)
