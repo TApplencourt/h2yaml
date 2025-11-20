@@ -1,0 +1,210 @@
+functions:
+- name: f0
+  params:
+  - type:
+      kind: int
+      name: int
+  type:
+    kind: void
+    name: void
+- name: f1
+  params:
+  - name: b
+    type:
+      kind: int
+      name: int
+  type:
+    kind: void
+    name: void
+- name: f2
+  params: []
+  type:
+    kind: void
+    name: void
+- name: f3
+  params:
+  - name: x
+    type:
+      kind: array
+      type:
+        const: true
+        kind: struct
+        name: a
+  type:
+    kind: struct
+    name: a
+- name: f4
+  params:
+  - name: a
+    type:
+      kind: array
+      type:
+        kind: int
+        name: int
+  type:
+    kind: int
+    name: int
+- name: f5
+  params:
+  - name: a
+    type:
+      kind: pointer
+      type:
+        const: true
+        kind: int
+        name: int
+  type:
+    kind: int
+    name: int
+- name: f6
+  params:
+  - type:
+      kind: int
+      name: int
+  type:
+    kind: void
+    name: void
+  var_args: true
+- name: f7
+  type:
+    kind: void
+    name: void
+- name: f8
+  params:
+  - name: size
+    type:
+      kind: custom_type
+      name: size_t
+  type:
+    kind: custom_type
+    name: size_t
+- inline: true
+  name: f9
+  params: []
+  storage: static
+  type:
+    kind: void
+    name: void
+- name: f11
+  params:
+  - name: a
+    type:
+      kind: pointer
+      type:
+        kind: custom_type
+        name: f11_t
+  type:
+    kind: void
+    name: void
+structs:
+- members:
+  - name: i
+    type:
+      kind: int
+      name: int
+  name: a
+- members:
+  - name: a
+    type:
+      kind: int
+      name: int
+  name: f11_s
+typedefs:
+- name: ptrdiff_t
+  type:
+    kind: int
+    name: long
+- name: size_t
+  type:
+    kind: int
+    name: unsigned long
+- name: wchar_t
+  type:
+    kind: int
+    name: int
+- name: max_align_t
+  type:
+    kind: struct
+    members:
+    - name: __clang_max_align_nonce1
+      type:
+        kind: int
+        name: long long
+    - name: __clang_max_align_nonce2
+      type:
+        kind: float
+        name: long double
+- name: a0_t
+  type:
+    kind: pointer
+    type:
+      kind: function
+      params:
+      - type:
+          kind: int
+          name: int
+      type:
+        kind: int
+        name: int
+- name: a1_t
+  type:
+    kind: pointer
+    type:
+      kind: function
+      params:
+      - name: a
+        type:
+          kind: int
+          name: int
+      type:
+        kind: int
+        name: int
+- name: b_t
+  type:
+    kind: pointer
+    type:
+      kind: function
+      params: []
+      type:
+        kind: int
+        name: int
+- name: c_t
+  type:
+    kind: pointer
+    type:
+      kind: function
+      type:
+        kind: int
+        name: int
+- name: d_t
+  type:
+    kind: int
+    name: int
+- name: e_t
+  type:
+    kind: pointer
+    type:
+      kind: function
+      params:
+      - name: x
+        type:
+          kind: int
+          name: int
+      type:
+        kind: custom_type
+        name: d_t
+- name: f_t
+  type:
+    kind: function
+    params:
+    - type:
+        kind: int
+        name: int
+    type:
+      kind: void
+      name: void
+    var_args: true
+- name: f11_t
+  type:
+    kind: struct
+    name: f11_s

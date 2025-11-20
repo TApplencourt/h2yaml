@@ -190,6 +190,8 @@ def find_cursors(cursor, kind, depth=-1, include_root=False):
 @property
 def _is_in_interesting_header(self):
     # Note: This function uses the global variable PATTERN_INTERESTING_HEADER.
+    if PATTERN_INTERESTING_HEADER in ("None", "False"):
+        return True
 
     # Skip system headers
     if self.is_in_system_header:
