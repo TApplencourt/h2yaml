@@ -190,11 +190,10 @@ def find_cursors(cursor, kind, depth=-1, include_root=False):
 @property
 def _is_in_interesting_header(self):
     # Note: This function uses the global variable PATTERN_INTERESTING_HEADER.
-    if PATTERN_INTERESTING_HEADER in ("None", "False"):
-        return True
+    include_system_header, pattern = PATTERN_INTERESTING_HEADER
 
-    # Skip system headers
-    if self.is_in_system_header:
+    # Skip system headers if required
+    if not (include_system_header) and self.is_in_system_header:
         return False
 
     # Skip Macro
@@ -206,7 +205,7 @@ def _is_in_interesting_header(self):
     if any(basename.startswith(s) for s in ["std", "__std"]):
         return False
     # Apply user-defined white-list pattern
-    return re.search(PATTERN_INTERESTING_HEADER, basename)
+    return re.search(pattern, basename)
 
 
 @cache
@@ -772,6 +771,7 @@ def h2yaml(
     pattern=".*",
     canonicalization=False,
     compat_cast_to_yaml=False,
+    include_system_header=False,
 ):
     if file == "-":
         data = sys.stdin.buffer.read()
@@ -787,7 +787,10 @@ def h2yaml(
     )
     check_diagnostic(tu)
     decls = parse_translation_unit(
-        tu.cursor, pattern, canonicalization, compat_cast_to_yaml
+        tu.cursor,
+        [include_system_header, pattern],
+        canonicalization,
+        compat_cast_to_yaml,
     )
     return yaml.dump(decls, Dumper=Dumper)
 
@@ -828,6 +831,13 @@ def parse_args(argv):
         metavar="REGEX",
         help="Only process headers matching the regex (default: .*).",
     )
+
+    parser.add_argument(
+        "--include-system-header",
+        action="store_true",
+        help="Include system header",
+    )
+
     parser.add_argument(
         "-c",
         "--canonicalization",
