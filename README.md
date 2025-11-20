@@ -61,6 +61,20 @@ In `h2yaml`, we use the `-Wc` prefix to forward option to clang (we also support
 h2yaml -Wc,-I./include/ path/to/your/header.h
 ```
 
+### Filtering
+
+It's possible to filter headers relevant to your use case using `--filter-header` options with a regex:
+
+```bash
+h2yaml --filter-header "my_app*.h"
+```
+
+By default, all system headers are ignored. To include them, use:
+
+```bash
+h2yaml --filter-header None
+```
+
 ## Format
 
 The YAML will consist of 6 declarations sections: `structs,` `unions,` `typedefs,` `declarations,` `functions,` and `enums.` 
