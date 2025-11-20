@@ -19,18 +19,17 @@ Based on `libclang` and their [python binding](https://libclang.readthedocs.io/e
 
 ## Installation
 
-The quiskest way to get started is:
+For system wide install do:
+```bash
+pip install https://github.com/TApplencourt/h2yaml.git
 ```
+Then just use `h2yaml` binary.  
+
+We also support [PEP723](https://peps.python.org/pep-0723/) inline dependency: 
+```bash
 git clone https://github.com/TApplencourt/h2yaml.git
 cd h2yaml
 uv run h2yaml.py
-```
-
-For system wide install do:
-```
-git clone https://github.com/TApplencourt/h2yaml.git
-cd h2yaml
-pip install .
 ```
 
 For developpent please use `pip install .[test]`.
@@ -38,11 +37,11 @@ Require python `>=3.11`; one cannot write a Parser without Pattern Matching.
 
 ## Usage
 
-```
+```bash
 h2yaml path/to/your/header.h
 ```
 You can also read from `stdin` by passing `-` as the file argument:
-```
+```bash
 cat header.h | h2yaml -Wc,-xc -
 ```
 
@@ -53,7 +52,7 @@ we follow the same convention used by GCC when passing options to the linker usi
 
 In `h2yaml`, we use the `-Wc` prefix to forward option to clang (we also support `-Wc,--startgroup` and `-Wc,--endgroup` to pass multiples options).
 
-```
+```bash
 h2yaml -Wc,-I./include/ path/to/your/header.h
 ```
 
