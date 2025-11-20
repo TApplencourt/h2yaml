@@ -66,7 +66,7 @@ def next_non_attribute(cursors):
 @type_enforced.Enforcer
 def h2yaml_warning(c: clang.cindex.Cursor, msg):
     print(
-        f"h2yaml diagnostic: {c.location}: Warning: {msg}",
+        f"h2yaml: {c.location}: Warning: {msg}",
         file=sys.stderr,
     )
 
@@ -74,17 +74,24 @@ def h2yaml_warning(c: clang.cindex.Cursor, msg):
 class SystemIncludes:
     # Our libclang version may differ from the "normal" compiler used by the system.
     # This means we may lack the `isystem` headers that the user expects.
-    # We use the `$CC` environment variable to detect these headers and add them to our include path.
+    # We use the `$CC` environment variable and fall back to `cc` if not present
+    # We use this compiler to get the input path
     @classproperty
     def paths(cls):
-        if not (cc := os.getenv("CC")):  # pragma: no cover
+        cc = os.getenv("CC", "cc")
+        cmd = [cc, "-E", "-Wp,-v", "-xc", "/dev/null"]
+        try:
+            text = subprocess.check_output(
+                cmd,
+                text=True,
+                stderr=subprocess.STDOUT,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError):  # pragma no cover
+            print(
+                f"h2yaml: Warning: {' '.join(cmd)} failed. Default system header will be used",
+                file=sys.stderr,
+            )
             return []
-
-        text = subprocess.check_output(
-            [cc, "-E", "-Wp,-v", "-xc", "/dev/null"],
-            text=True,
-            stderr=subprocess.STDOUT,
-        )
 
         regex = r"#include <...> search starts here:(.*?)End of search list"
         match = re.search(regex, text, re.DOTALL)
