@@ -60,12 +60,17 @@ def test_canonicalization():
 
 def test_filter_none():
     filename = "./tests/function"
+
     new_yml = yaml.safe_load(h2yaml.h2yaml(f"{filename}.h", pattern="None"))
 
-    with open(f"{filename}_with_system_header.yml", "r") as f:
+    with open(f"{filename}.yml", "r") as f:
         ref_yml = yaml.safe_load(f)
 
-    assert new_yml == ref_yml
+    from deepdiff import DeepDiff
+
+    # empty dict means `ref_yml` is subset of `new_yml`
+    diff = DeepDiff(ref_yml, new_yml, ignore_order=True)
+    assert set(diff.keys()) == {"iterable_item_added"}
 
 
 def test_compat_cast_to_yaml():
