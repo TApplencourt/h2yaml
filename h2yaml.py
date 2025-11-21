@@ -202,7 +202,9 @@ def _is_in_interesting_header(self):
 
     # Skip standard library headers
     basename = os.path.basename(self.file.name)
-    if any(basename.startswith(s) for s in ["std", "__std"]):
+    if not (include_system_header) and any(
+        basename.startswith(s) for s in ["std", "__std"]
+    ):
         return False
     # Apply user-defined white-list pattern
     return re.search(pattern, basename)

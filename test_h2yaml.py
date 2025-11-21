@@ -58,11 +58,10 @@ def test_canonicalization():
     assert new_yml == ref_yml
 
 
-def test_filter_none():
+def test_system_header():
     filename = "./tests/function"
 
     new_yml = yaml.safe_load(h2yaml.h2yaml(f"{filename}.h", include_system_header=True))
-
     with open(f"{filename}.yml", "r") as f:
         ref_yml = yaml.safe_load(f)
 
@@ -83,13 +82,13 @@ def test_compat_cast_to_yaml():
     assert new_yml == ref_yml
 
 
-def test_main_version():
+def test_main_version_fail():
     with pytest.raises(SystemExit) as e:
         h2yaml.main(["-Wc,-DTEST_DEFINE=12", "./tests/struct_forward.h"])
     assert e.value.code == 1
 
 
-def test_main_versiom():
+def test_main_version():
     with pytest.raises(SystemExit) as e:
         h2yaml.main(["--version"])
     assert e.value.code == 0
