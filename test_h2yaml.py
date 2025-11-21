@@ -67,7 +67,8 @@ def test_system_header():
 
     from deepdiff import DeepDiff
 
-    # empty dict means `ref_yml` is subset of `new_yml`
+    # We check that `ref_yml` is subset of `new_yml,
+    # meaning we only added elements to it`
     diff = DeepDiff(ref_yml, new_yml, ignore_order=True)
     assert set(diff.keys()) == {"iterable_item_added"}
 
