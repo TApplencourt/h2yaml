@@ -66,7 +66,7 @@ def next_non_attribute(cursors):
 @type_enforced.Enforcer
 def h2yaml_warning(c: clang.cindex.Cursor, msg):
     print(
-        f"h2yaml: {c.location}: Warning: {msg}",
+        f"h2yaml diagnostic: {c.location}: Warning: {msg}",
         file=sys.stderr,
     )
 
@@ -88,7 +88,7 @@ class SystemIncludes:
             )
         except (subprocess.CalledProcessError, FileNotFoundError):  # pragma no cover
             print(
-                f"h2yaml: Warning: {' '.join(cmd)} failed. Default system header will be used",
+                f"h2yaml diagnostic: Warning: {' '.join(cmd)} failed. Default system header will be used",
                 file=sys.stderr,
             )
             return []
