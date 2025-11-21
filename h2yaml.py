@@ -189,23 +189,21 @@ def find_cursors(cursor, kind, depth=-1, include_root=False):
 @attach_to(clang.cindex.SourceLocation)
 @property
 def _is_in_interesting_header(self):
-    # Note: This function uses the global variable PATTERN_INTERESTING_HEADER.
-    include_system_header, pattern = PATTERN_INTERESTING_HEADER
-
-    # Skip system headers if required
-    if not (include_system_header) and self.is_in_system_header:
-        return False
-
     # Skip Macro
     if not self.file:
         return False
 
-    # Skip standard library headers
+    # Note: This function uses the global variable PATTERN_INTERESTING_HEADER.
+    include_system_header, pattern = PATTERN_INTERESTING_HEADER
     basename = os.path.basename(self.file.name)
-    if not (include_system_header) and any(
-        basename.startswith(s) for s in ["std", "__std"]
+
+    # Skip system headers and standard library headers if required
+    if not (include_system_header) and (
+        self.is_in_system_header
+        or any(basename.startswith(s) for s in ["std", "__std"])
     ):
         return False
+
     # Apply user-defined white-list pattern
     return re.search(pattern, basename)
 
