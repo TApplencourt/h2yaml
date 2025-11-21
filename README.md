@@ -32,7 +32,12 @@ cd h2yaml
 uv run h2yaml.py
 ```
 
-For developpent please use `pip install .[test]`.
+For developpent please use `pip install --group test` and to run tests
+```
+uv run coverage run --module pytest -vv --full-trace
+uv run coverage report --show-missing --fail-under=100
+```
+
 Require python `>=3.11`; one cannot write a Parser without Pattern Matching.
 
 ## Usage
@@ -54,6 +59,20 @@ In `h2yaml`, we use the `-Wc` prefix to forward option to clang (we also support
 
 ```bash
 h2yaml -Wc,-I./include/ path/to/your/header.h
+```
+
+### Filtering
+
+It's possible to filter headers relevant to your use case using `--filter-header` options with a regex:
+
+```bash
+h2yaml --filter-header "my_app*.h"
+```
+
+By default, all system headers are ignored. To include them, use:
+
+```bash
+h2yaml --filter-header None
 ```
 
 ## Format
