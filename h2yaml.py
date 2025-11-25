@@ -194,11 +194,11 @@ def _is_in_interesting_header(self):
         return False
 
     # Note: This function uses the global variable PATTERN_INTERESTING_HEADER.
-    include_system_header, pattern = PATTERN_INTERESTING_HEADER
+    include_builtin_headers, pattern = PATTERN_INTERESTING_HEADER
     basename = os.path.basename(self.file.name)
 
     # Skip system headers and standard library headers if required
-    if not (include_system_header) and (
+    if not (include_builtin_headers) and (
         self.is_in_system_header
         or any(basename.startswith(s) for s in ["std", "__std"])
     ):
@@ -771,7 +771,7 @@ def h2yaml(
     pattern=".*",
     canonicalization=False,
     compat_cast_to_yaml=False,
-    include_system_header=False,
+    include_builtin_headers=False,
 ):
     if file == "-":
         data = sys.stdin.buffer.read()
@@ -788,7 +788,7 @@ def h2yaml(
     check_diagnostic(tu)
     decls = parse_translation_unit(
         tu.cursor,
-        [include_system_header, pattern],
+        [include_builtin_headers, pattern],
         canonicalization,
         compat_cast_to_yaml,
     )
@@ -833,9 +833,9 @@ def parse_args(argv):
     )
 
     parser.add_argument(
-        "--include-system-header",
+        "--include-builtin-headers",
         action="store_true",
-        help="Include system header",
+        help="Include system and library headers",
     )
 
     parser.add_argument(

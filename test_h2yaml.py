@@ -61,7 +61,9 @@ def test_canonicalization():
 def test_system_header():
     filename = "./tests/function"
 
-    new_yml = yaml.safe_load(h2yaml.h2yaml(f"{filename}.h", include_system_header=True))
+    new_yml = yaml.safe_load(
+        h2yaml.h2yaml(f"{filename}.h", include_builtin_headers=True)
+    )
     with open(f"{filename}.yml", "r") as f:
         ref_yml = yaml.safe_load(f)
 
