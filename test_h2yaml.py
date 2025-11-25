@@ -58,6 +58,23 @@ def test_canonicalization():
     assert new_yml == ref_yml
 
 
+def test_system_header():
+    filename = "./tests/function"
+
+    new_yml = yaml.safe_load(
+        h2yaml.h2yaml(f"{filename}.h", include_builtin_headers=True)
+    )
+    with open(f"{filename}.yml", "r") as f:
+        ref_yml = yaml.safe_load(f)
+
+    from deepdiff import DeepDiff
+
+    # We check that `ref_yml` is subset of `new_yml,
+    # meaning we only added elements to it`
+    diff = DeepDiff(ref_yml, new_yml, ignore_order=True)
+    assert set(diff.keys()) == {"iterable_item_added"}
+
+
 def test_compat_cast_to_yaml():
     filename = "./tests/array"
     new_yml = yaml.safe_load(h2yaml.h2yaml(f"{filename}.h", compat_cast_to_yaml=True))
@@ -68,13 +85,13 @@ def test_compat_cast_to_yaml():
     assert new_yml == ref_yml
 
 
-def test_main_version():
+def test_main_version_fail():
     with pytest.raises(SystemExit) as e:
         h2yaml.main(["-Wc,-DTEST_DEFINE=12", "./tests/struct_forward.h"])
     assert e.value.code == 1
 
 
-def test_main_versiom():
+def test_main_version():
     with pytest.raises(SystemExit) as e:
         h2yaml.main(["--version"])
     assert e.value.code == 0
