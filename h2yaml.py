@@ -75,7 +75,7 @@ class SystemIncludes:
     # Our libclang version may differ from the "normal" compiler used by the system.
     # This means we may lack the `isystem` headers that the user expects.
     # We use the `$CC` environment variable and fall back to `cc` if not present
-    # We use this compiler to get the input path
+    # We use this compiler to get the system include path
     @classproperty
     def paths(cls):
         cc = os.getenv("CC", "cc")
