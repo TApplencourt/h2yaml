@@ -152,6 +152,9 @@ def attach_to(target):
     return decorator
 
 
+# Ensure libclang is loaded so Cursor.is_null (used by __hash__) is initialized
+clang.cindex.conf.lib
+
 # Monkey-patch for missing __hash__ in clang.cindex.Cursor
 # See upstream: https://github.com/llvm/llvm-project/pull/132377
 # For an unknown reason, `hasattr(clang.cindex.Cursor, "__hash__")` returns True

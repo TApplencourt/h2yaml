@@ -38,7 +38,7 @@ def test_include():
     assert new_yml == ref_yml
 
 
-def test_include_patern():
+def test_include_pattern():
     filename = "./tests/header_filter/foo"
     new_yml = yaml.safe_load(h2yaml.h2yaml(f"{filename}.h", pattern="foo.h"))
 
