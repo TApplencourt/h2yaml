@@ -3,6 +3,7 @@ import pytest
 import h2yaml
 import yaml
 import sys
+from deepdiff import DeepDiff
 
 filenames = [str(p.with_suffix("")) for p in pathlib.Path("./tests/").glob("*.h")]
 
@@ -25,7 +26,10 @@ def test_cmp_to_ref(filename):
     with open(f"{filename}.yml", "r") as f:
         ref_yml = yaml.safe_load(f)
 
-    assert new_yml == ref_yml
+    # Compare YAML structures ignoring list order, since the removal of ELABORATED
+    # nodes from the clang-AST have changed the traversal ordering
+    diff = DeepDiff(new_yml, ref_yml, ignore_order=True)
+    assert not diff, f"Differences found: {diff}"
 
 
 def test_include():
@@ -66,8 +70,6 @@ def test_system_header():
     )
     with open(f"{filename}.yml", "r") as f:
         ref_yml = yaml.safe_load(f)
-
-    from deepdiff import DeepDiff
 
     # We check that `ref_yml` is subset of `new_yml,
     # meaning we only added elements to it`
