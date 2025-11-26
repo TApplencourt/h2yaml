@@ -415,7 +415,7 @@ def parse_function_proto_type(t: clang.cindex.Type, cursors: Callable):
                 # Skip TYPE_REF cursors (e.g., "struct a" in "struct a b") to
                 # reach the actual parameter name cursor ("b").
                 if c.kind == clang.cindex.CursorKind.TYPE_REF:
-                    c = next_non_attribute(cursors)
+                    c = next_non_attribute(cursors)  # pragma: no cover:libclang<22
                 return {"name": c.spelling} | d_type
             case _:  # pragma: no cover
                 raise NotImplementedError(f"parse_parm_type: {t}")
@@ -461,7 +461,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
                 "kind": "pointer",
                 "type": parse_type(t.get_pointee(), cursors),
             } | d_qualified
-        case clang.cindex.TypeKind.ELABORATED:
+        case clang.cindex.TypeKind.ELABORATED:  # pragma: no cover:libclang>=22
             # Move the cursors to keep it in sync which children
             next_non_attribute(cursors)
             decl = t.get_declaration()
@@ -488,7 +488,9 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
             return {"kind": "function"} | parse_function_proto_type(t, cursors)
         case clang.cindex.TypeKind.FUNCTIONNOPROTO:
             return {"kind": "function"} | parse_function_noproto_type(t, cursors)
-        case clang.cindex.TypeKind.TYPEDEF | clang.cindex.TypeKind.ENUM:
+        case (
+            clang.cindex.TypeKind.TYPEDEF | clang.cindex.TypeKind.ENUM
+        ):  # pragma: no cover:libclang<22
             c = next_non_attribute(cursors)
             return parse_decl(c)
         case _:  # pragma: no cover
