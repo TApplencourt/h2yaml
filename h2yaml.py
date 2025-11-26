@@ -406,6 +406,7 @@ def parse_function_proto_type(t: clang.cindex.Type, cursors: Callable):
     def parse_parm_type(i, t: clang.cindex.Type, cursors: Callable):
         c = next_non_attribute(cursors)
         d_type = {"type": parse_type(t, c.get_interesting_children())}
+
         match (c.is_anonymous2(), CANONICALIZATION):
             case (True, False):
                 return d_type
