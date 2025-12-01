@@ -413,6 +413,10 @@ def parse_function_proto_type(t: clang.cindex.Type, cursors: Callable):
             case (True, True):
                 return {"name": f"_arg{i}"} | d_type
             case (False, _):
+                # Skip TYPE_REF cursors (e.g., "struct a" in "struct a b") to
+                # reach the actual parameter name cursor ("b").
+                if c.kind == clang.cindex.CursorKind.TYPE_REF:
+                    c = next_non_attribute(cursors)  # pragma: no cover:libclang<22
                 return {"name": c.spelling} | d_type
             case _:  # pragma: no cover
                 raise NotImplementedError(f"parse_parm_type: {t}")
@@ -458,13 +462,13 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
                 "kind": "pointer",
                 "type": parse_type(t.get_pointee(), cursors),
             } | d_qualified
-        case clang.cindex.TypeKind.ELABORATED:
+        case clang.cindex.TypeKind.ELABORATED:  # pragma: no cover:libclang>=22
             # Move the cursors to keep it in sync which children
             next_non_attribute(cursors)
             decl = t.get_declaration()
             return parse_decl(decl) | d_qualified
         case clang.cindex.TypeKind.RECORD:
-            return parse_decl(t.get_declaration())
+            return parse_decl(t.get_declaration()) | d_qualified
         case clang.cindex.TypeKind.CONSTANTARRAY:
             d = {"kind": "array", "type": parse_type(t.element_type, cursors)}
 
@@ -485,6 +489,11 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
             return {"kind": "function"} | parse_function_proto_type(t, cursors)
         case clang.cindex.TypeKind.FUNCTIONNOPROTO:
             return {"kind": "function"} | parse_function_noproto_type(t, cursors)
+        case (
+            clang.cindex.TypeKind.TYPEDEF | clang.cindex.TypeKind.ENUM
+        ):  # pragma: no cover:libclang<22
+            c = next_non_attribute(cursors)
+            return parse_decl(c)
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_type: {k}")
 
@@ -502,7 +511,7 @@ def parse_decl(c: clang.cindex.Cursor):
             return {"kind": "union"} | parse_union_decl(c)
         case clang.cindex.CursorKind.ENUM_DECL:
             return {"kind": "enum"} | parse_enum_decl(c)
-        case clang.cindex.CursorKind.TYPEDEF_DECL:
+        case clang.cindex.CursorKind.TYPEDEF_DECL | clang.cindex.CursorKind.TYPE_REF:
             return {"kind": "custom_type"} | parse_typedef_decl(c)
         case clang.cindex.CursorKind.FUNCTION_DECL:
             return parse_function_decl(c)
@@ -559,10 +568,15 @@ def parse_var_decl(c: clang.cindex.Cursor):
             kind_target = "*"
         case clang.cindex.TypeKind.CONSTANTARRAY:
             kind_target = clang.cindex.CursorKind.INIT_LIST_EXPR
-        case clang.cindex.TypeKind.ELABORATED | clang.cindex.TypeKind.POINTER:
+        case (
+            clang.cindex.TypeKind.ELABORATED
+            | clang.cindex.TypeKind.POINTER
+            | clang.cindex.TypeKind.TYPEDEF
+            | clang.cindex.TypeKind.RECORD
+        ):
             kind_target = clang.cindex.CursorKind.UNEXPOSED_EXPR
         case _:  # pragma: no cover
-            raise NotImplementedError(f"parse_decl: {c.type.kind}")
+            raise NotImplementedError(f"parse_var_decl: {c.type.kind}")
 
     if c2 := next(find_cursors(c, kind_target), None):
         d["init"] = c2.extent_text
