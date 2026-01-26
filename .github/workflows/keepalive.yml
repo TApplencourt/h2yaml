@@ -1,0 +1,75 @@
+name: Monthly keepalive commit
+
+on:
+  schedule:
+    - cron: "0 0 1 * *"   # monthly, UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_BRANCH: main
+  KEEPALIVE_BRANCH: _github_keepalive_branch
+  THRESHOLD_DAYS: 28   # Githut timeout - (Max day month + 1) = 60 - (31 + 1) = 28
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_BRANCH }}
+          fetch-depth: 1
+
+      - name: Evaluate source branch age
+        id: check
+        shell: bash
+        run: |
+          LAST_COMMIT_TS=$(git log -1 --format=%ct)
+          NOW_TS=$(date +%s)
+          AGE_DAYS=$(( (NOW_TS - LAST_COMMIT_TS) / 86400 ))
+
+          echo "Source branch: $SOURCE_BRANCH"
+          echo "Last commit age: ${AGE_DAYS} days"
+          echo "Threshold: ${THRESHOLD_DAYS} days"
+
+          if [ "$AGE_DAYS" -gt "$THRESHOLD_DAYS" ]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare keepalive branch
+        if: steps.check.outputs.stale == 'true'
+        shell: bash
+        run: |
+          git fetch origin
+
+          if git show-ref --verify --quiet refs/remotes/origin/$KEEPALIVE_BRANCH; then
+            echo "Branch exists: $KEEPALIVE_BRANCH"
+            git checkout -B $KEEPALIVE_BRANCH origin/$KEEPALIVE_BRANCH
+          else
+            echo "Branch does not exist. Creating: $KEEPALIVE_BRANCH"
+            git checkout --orphan $KEEPALIVE_BRANCH
+            git rm -rf . # Remove all file, so we have an emptu branch
+          fi
+
+      - name: Configure git identity
+        if: steps.check.outputs.stale == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create empty keepalive commit
+        if: steps.check.outputs.stale == 'true'
+        run: |
+          git commit --allow-empty -m "chore(keepalive): monthly heartbeat"
+
+      - name: Push keepalive branch
+        if: steps.check.outputs.stale == 'true'
+        run: |
+          git push origin $KEEPALIVE_BRANCH
+
