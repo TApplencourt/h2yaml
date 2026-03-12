@@ -96,6 +96,18 @@ functions:
   type:
     kind: void
     name: void
+- name: f12
+  params:
+  - name: a
+    type:
+      kind: pointer
+      type:
+        const: true
+        kind: custom_type
+        name: f11_t
+  type:
+    kind: void
+    name: void
 structs:
 - members:
   - name: i

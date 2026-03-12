@@ -493,7 +493,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
             clang.cindex.TypeKind.TYPEDEF | clang.cindex.TypeKind.ENUM
         ):  # pragma: no cover:libclang<22
             c = next_non_attribute(cursors)
-            return parse_decl(c)
+            return parse_decl(c) | d_qualified
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_type: {k}")
 

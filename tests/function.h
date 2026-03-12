@@ -38,3 +38,5 @@ typedef struct f11_s {
   int a;
 } f11_t;
 void f11(f11_t *a);
+
+void f12(const f11_t *a);
