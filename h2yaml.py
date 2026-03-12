@@ -113,10 +113,10 @@ def check_diagnostic(tu: clang.cindex.TranslationUnit):
 #   /   |  ._   _|  _       |_   _|_  _  ._   _ o  _  ._
 #   \_ _|_ | | (_| (/_ ><   |_ >< |_ (/_ | | _> | (_) | |
 #
-if e := os.getenv("LIBCLANG_PATH"):  # pragma: no cover
+if e := os.getenv("LIBCLANG_LIBRARY_PATH"):  # pragma: no cover
     clang.cindex.Config.set_library_path(e)
 
-if e := os.getenv("LIBCLANG_FILE"):  # pragma: no cover
+if e := os.getenv("LIBCLANG_LIBRARY_FILE"):  # pragma: no cover
     clang.cindex.Config.set_library_file(e)
 
 
