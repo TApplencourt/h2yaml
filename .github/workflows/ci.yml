@@ -22,7 +22,7 @@ jobs:
             - python-version: "3.13"
             - dependency-group: "test"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
         with:
