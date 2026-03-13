@@ -22,7 +22,7 @@ jobs:
             - python-version: "3.13"
             - dependency-group: "test"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v7
         with:
@@ -35,7 +35,7 @@ jobs:
   test-packaging-and-cli:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
       - run: |
           uv venv
@@ -49,13 +49,13 @@ jobs:
   test-PEP-723:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
       - run: echo "int a;" | uv run python ./h2yaml.py -Wc,-xc -
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
       - run: uvx ruff check --ignore E741
       - run: uvx ruff format --exit-non-zero-on-format
@@ -66,7 +66,7 @@ jobs:
       matrix:
         llvm-version: ["18", "19", "20", "21", "22"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
       - name: Add LLVM apt repository
         run: |
