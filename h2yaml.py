@@ -6,7 +6,7 @@
 # ]
 # ///
 
-__version__ = "0.4.0"
+__version__ = "0.4.2"
 
 from functools import cache, cached_property
 from collections import deque
@@ -86,7 +86,7 @@ class SystemIncludes:
                 text=True,
                 stderr=subprocess.STDOUT,
             )
-        except (subprocess.CalledProcessError, FileNotFoundError):  # pragma no cover
+        except (subprocess.CalledProcessError, FileNotFoundError):  # pragma: no cover
             print(
                 f"h2yaml diagnostic: Warning: {' '.join(cmd)} failed. Default system header will be used",
                 file=sys.stderr,
@@ -511,8 +511,10 @@ def parse_decl(c: clang.cindex.Cursor):
             return {"kind": "union"} | parse_union_decl(c)
         case clang.cindex.CursorKind.ENUM_DECL:
             return {"kind": "enum"} | parse_enum_decl(c)
-        case clang.cindex.CursorKind.TYPEDEF_DECL | clang.cindex.CursorKind.TYPE_REF:
+        case clang.cindex.CursorKind.TYPEDEF_DECL:
             return {"kind": "custom_type"} | parse_typedef_decl(c)
+        case clang.cindex.CursorKind.TYPE_REF: # pragma: no cover:libclang<22
+            return parse_decl(c.referenced)
         case clang.cindex.CursorKind.FUNCTION_DECL:
             return parse_function_decl(c)
         case clang.cindex.CursorKind.VAR_DECL:

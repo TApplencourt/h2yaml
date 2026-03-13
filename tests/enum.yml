@@ -70,6 +70,15 @@ enums:
     val: '10'
   name: F
 functions:
+- name: i_foo0
+  params:
+  - type:
+      kind: enum
+      members: []
+      name: h_h0e
+  type:
+    kind: void
+    name: void
 - name: i_foo1
   params:
   - type:
