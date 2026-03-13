@@ -83,7 +83,7 @@ jobs:
 
       - name: Install the project
         run: |
-          uv sync --group test --no-install-package libclang
+          uv sync --group typing-test --no-install-package libclang
           echo "LIBCLANG_LIBRARY_PATH=$(llvm-config-${{ matrix.llvm-version }} --libdir)" >> $GITHUB_ENV
 
       - name: Link system clang into venv
