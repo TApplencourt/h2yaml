@@ -178,6 +178,17 @@ except AttributeError:  # pragma: no cover
         return clang.cindex.conf.lib.clang_Cursor_isFunctionInlined(self)
 
 
+try:
+    clang.config.get_cindex_library_version()
+except AttributeError:  # pragma: no cover
+    clang.cindex.conf.lib.clang_getClangVersion.restype = clang.cindex._CXString
+
+    @attach_to(clang.cindex.Config)
+    def _get_cindex_library_version():
+        cx_string = clang.cindex.conf.lib.clang_getClangVersion()
+        return str(clang.cindex.conf.lib.clang_getCString(cx_string))
+
+
 def find_cursors(cursor, kind, depth=-1, include_root=False):
     if include_root and (kind == "*" or cursor.kind == kind):
         yield cursor
@@ -841,6 +852,12 @@ def parse_args(argv):
 
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+
+    parser.add_argument(
+        "--clang-version",
+        action="version",
+        version=clang.cindex.Config.get_cindex_library_version(),
     )
 
     parser.add_argument(

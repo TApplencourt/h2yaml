@@ -31,8 +31,7 @@ jobs:
         run: uv sync --group ${{ matrix.dependency-group }}
       - name: Run tests
         run: |
-          CC=gcc uv run coverage run --module pytest
-          uv run coverage report --show-missing --fail-under=100
+          CC=gcc uv run pytest --cov=h2yaml -vv --full-trace --cov-report=term-missing --cov-fail-under=100
   test-packaging-and-cli:
     runs-on: ubuntu-latest
     steps:
@@ -94,5 +93,4 @@ jobs:
 
       - name: Run tests
         run: |
-          CC=gcc uv run --no-sync coverage run --source=h2yaml --module pytest
-          uv run --no-sync coverage report --show-missing --fail-under=100
+          CC=gcc uv run --no-sync pytest --cov=h2yaml -vv --full-trace --cov-report=term-missing --cov-fail-under=100

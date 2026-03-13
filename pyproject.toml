@@ -20,7 +20,7 @@ version = {attr = "h2yaml.__version__"}
 test = [
   "pytest",
   "pytest-icdiff",
-  "coverage",
+  "pytest-cov",
   "deepdiff"
 ]
 typing = ["type_enforced"]
