@@ -61,6 +61,7 @@ def next_non_attribute(cursors):
     for c in cursors:
         if not c.kind.is_attribute():
             return c
+    raise Exception("No attribute found")  # pragma: no cover
 
 
 @type_enforced.Enforcer
