@@ -5,7 +5,7 @@
 
 enum h_0e { h_0e_0 };
 
-void i_foo0( enum h_h0e );
+void i_foo0( enum h_0e );
 
 struct h_1s {
   enum h_1e { h_1e_0 } A_m;
