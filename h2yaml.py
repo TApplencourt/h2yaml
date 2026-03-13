@@ -513,7 +513,7 @@ def parse_decl(c: clang.cindex.Cursor):
             return {"kind": "enum"} | parse_enum_decl(c)
         case clang.cindex.CursorKind.TYPEDEF_DECL:
             return {"kind": "custom_type"} | parse_typedef_decl(c)
-        case clang.cindex.CursorKind.TYPE_REF: # pragma: no cover:libclang<22
+        case clang.cindex.CursorKind.TYPE_REF:  # pragma: no cover:libclang<22
             return parse_decl(c.referenced)
         case clang.cindex.CursorKind.FUNCTION_DECL:
             return parse_function_decl(c)
