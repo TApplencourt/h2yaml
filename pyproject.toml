@@ -25,3 +25,9 @@ test = [
 ]
 typing = ["type_enforced"]
 typing-test = [{include-group = "typing"}, {include-group = "test"}]
+
+[tool.coverage.run]
+plugins = ["coverage_h2yaml"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

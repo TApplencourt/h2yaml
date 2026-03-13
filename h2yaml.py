@@ -426,8 +426,10 @@ def parse_function_proto_type(t: clang.cindex.Type, cursors: Callable):
             case (False, _):
                 # Skip TYPE_REF cursors (e.g., "struct a" in "struct a b") to
                 # reach the actual parameter name cursor ("b").
-                if c.kind == clang.cindex.CursorKind.TYPE_REF:
-                    c = next_non_attribute(cursors)  # pragma: no cover:libclang<22
+                if (
+                    c.kind == clang.cindex.CursorKind.TYPE_REF
+                ):  # pragma: if libclang<22: no cover
+                    c = next_non_attribute(cursors)
                 return {"name": c.spelling} | d_type
             case _:  # pragma: no cover
                 raise NotImplementedError(f"parse_parm_type: {t}")
@@ -473,7 +475,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
                 "kind": "pointer",
                 "type": parse_type(t.get_pointee(), cursors),
             } | d_qualified
-        case clang.cindex.TypeKind.ELABORATED:  # pragma: no cover:libclang>=22
+        case clang.cindex.TypeKind.ELABORATED:  # pragma: if libclang>=22: no cover
             # Move the cursors to keep it in sync which children
             next_non_attribute(cursors)
             decl = t.get_declaration()
@@ -502,7 +504,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
             return {"kind": "function"} | parse_function_noproto_type(t, cursors)
         case (
             clang.cindex.TypeKind.TYPEDEF | clang.cindex.TypeKind.ENUM
-        ):  # pragma: no cover:libclang<22
+        ):  # pragma: if libclang<22: no cover
             c = next_non_attribute(cursors)
             return parse_decl(c) | d_qualified
         case _:  # pragma: no cover
@@ -524,7 +526,7 @@ def parse_decl(c: clang.cindex.Cursor):
             return {"kind": "enum"} | parse_enum_decl(c)
         case clang.cindex.CursorKind.TYPEDEF_DECL:
             return {"kind": "custom_type"} | parse_typedef_decl(c)
-        case clang.cindex.CursorKind.TYPE_REF:  # pragma: no cover:libclang<22
+        case clang.cindex.CursorKind.TYPE_REF:  # pragma: if libclang<22: no cover
             return parse_decl(c.referenced)
         case clang.cindex.CursorKind.FUNCTION_DECL:
             return parse_function_decl(c)
