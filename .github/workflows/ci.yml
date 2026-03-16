@@ -1,10 +1,9 @@
 name: Test
-
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   schedule:
     # At 00:00 on Sunday
     - cron: "0 0 * * 0"
@@ -19,8 +18,8 @@ jobs:
         dependency-group:
           - "typing-test"
         include:
-            - python-version: "3.13"
-            - dependency-group: "test"
+          - python-version: "3.13"
+          - dependency-group: "test"
     steps:
       - uses: actions/checkout@v6
       - name: Install uv and set the python version
@@ -45,7 +44,6 @@ jobs:
       - run: h2yaml --version
       - run: CC=gcc h2yaml ./tests/function.h
       - run: echo "int a;" | h2yaml -Wc,-xc -
-
   test-PEP-723:
     runs-on: ubuntu-latest
     steps:
@@ -64,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        llvm-version: ["18", "19", "20", "21"]
+        llvm-version: ["18", "19", "20", "21", "22"]
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
@@ -74,23 +72,19 @@ jobs:
           REPO="deb http://apt.llvm.org/noble/ llvm-toolchain-noble-${{ matrix.llvm-version }} main"
           echo "$REPO" | sudo tee /etc/apt/sources.list.d/llvm.list
           sudo apt-get update
-
       - name: Install and cache libclang via apt
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: libclang-${{ matrix.llvm-version }}-dev llvm-${{ matrix.llvm-version }}-dev python3-clang-${{ matrix.llvm-version }}
           version: llvm-${{ matrix.llvm-version }}
-
       - name: Install the project
         run: |
           uv sync --group typing-test --no-install-package libclang
           echo "LIBCLANG_LIBRARY_PATH=$(llvm-config-${{ matrix.llvm-version }} --libdir)" >> $GITHUB_ENV
-
       - name: Link system clang into venv
         run: |
           SITE_PACKAGES=$(uv run --no-sync python3 -c "import site; print(site.getsitepackages()[0])")
           ln -s /usr/lib/python3/dist-packages/clang "$SITE_PACKAGES/clang"
-
       - name: Run tests
         run: |
           CC=gcc uv run --no-sync pytest --cov=h2yaml -vv --full-trace --cov-report=term-missing --cov-fail-under=100
