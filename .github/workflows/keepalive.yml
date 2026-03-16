@@ -7,11 +7,13 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 env:
   SOURCE_BRANCH: main
   KEEPALIVE_BRANCH: _github_keepalive_branch
   THRESHOLD_DAYS: 28   # Githut timeout - (Max day month + 1) = 60 - (31 + 1) = 28
+  CI_WORKFLOW_FILE: .github/workflows/ci.yml
 
 jobs:
   keepalive:
@@ -72,6 +74,7 @@ jobs:
         if: steps.check.outputs.stale == 'true'
         run: |
           git push origin $KEEPALIVE_BRANCH
+
   update-llvm-versions:
     runs-on: ubuntu-latest
  
@@ -80,7 +83,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_BRANCH }}
- 
+          token: ${{ secrets.KEEPALIVE_WORKFLOW }}
+
       - name: Get latest stable LLVM major version
         id: llvm_latest
         env:
@@ -100,20 +104,24 @@ jobs:
           echo "Latest stable LLVM major version: $LATEST_MAJOR"
           echo "version=$LATEST_MAJOR" >> "$GITHUB_OUTPUT"
  
-      - name: Check if version is already tracked on main
-        id: decision
+      - name: Get current LLVM versions from matrix
+        id: current_versions
         uses: mikefarah/yq@master
         with:
-          cmd: |
-            LATEST=${{ steps.llvm_latest.outputs.version }} 
-            if yq '.jobs.*.strategy.matrix."llvm-version"[]' "$CI_WORKFLOW_FILE" \
-                | grep -qx "$LATEST"; then
-              echo "LLVM $LATEST is already in the matrix on main — nothing to do."
-              echo "needed=false" >> "$GITHUB_OUTPUT"
-            else
-              echo "LLVM $LATEST is not tracked yet — will open a PR."
-              echo "needed=true"  >> "$GITHUB_OUTPUT"
-            fi
+          cmd: yq '.jobs.test-system-libclang.strategy.matrix."llvm-version"[]' "${{ env.CI_WORKFLOW_FILE }}"
+ 
+      - name: Check if version is already tracked on main
+        id: decision
+        run: |
+          LATEST=${{ steps.llvm_latest.outputs.version }}
+ 
+          if echo "${{ steps.current_versions.outputs.result }}" | grep -qx "$LATEST"; then
+            echo "LLVM $LATEST is already in the matrix on main — nothing to do."
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "LLVM $LATEST is not tracked yet — will open a PR."
+            echo "needed=true"  >> "$GITHUB_OUTPUT"
+          fi
  
       - name: Update llvm-version matrix
         if: steps.decision.outputs.needed == 'true'
@@ -121,13 +129,14 @@ jobs:
         with:
           cmd: >-
             yq -i
-            '.jobs.*.strategy.matrix."llvm-version" += ["${{ steps.llvm_latest.outputs.version }}"]'
+            '.jobs.test-system-libclang.strategy.matrix."llvm-version" += ["${{ steps.llvm_latest.outputs.version }}"]'
             "${{ env.CI_WORKFLOW_FILE }}"
  
       - name: Commit, push and open PR
         if: steps.decision.outputs.needed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.KEEPALIVE_WORKFLOW }}
+
         run: |
           NEW_VERSION=${{ steps.llvm_latest.outputs.version }}
           BRANCH="ci/add-llvm-${NEW_VERSION}"
@@ -136,7 +145,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
  
           git checkout -b "$BRANCH"
-          git add "$CI_WORKFLOW_FILE"
+          git add "${{ env.CI_WORKFLOW_FILE }}"
           git commit -m "ci: add LLVM ${NEW_VERSION} to test matrix"
           git push --force-with-lease origin "$BRANCH"
  
@@ -144,12 +153,13 @@ jobs:
           gh pr create \
             --title "ci: add LLVM ${NEW_VERSION} to test matrix" \
             --body "LLVM **${NEW_VERSION}** has been released.
-          This PR adds it to the \`llvm-version\` matrix in \`${CI_WORKFLOW_FILE}\`.
+ 
+          This PR adds it to the \`llvm-version\` matrix in \`${{ env.CI_WORKFLOW_FILE }}\`.
+ 
           ---
           *Opened automatically by the monthly keepalive workflow.*" \
             --base "$SOURCE_BRANCH" \
             --head "$BRANCH" \
           || echo "PR already open for $BRANCH — skipping."
-
       
 
