@@ -72,4 +72,84 @@ jobs:
         if: steps.check.outputs.stale == 'true'
         run: |
           git push origin $KEEPALIVE_BRANCH
+  update-llvm-versions:
+    runs-on: ubuntu-latest
+ 
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_BRANCH }}
+ 
+      - name: Get latest stable LLVM major version
+        id: llvm_latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Stable tags look like llvmorg-19.1.7; RCs look like llvmorg-20.1.0-rc3.
+          LATEST_MAJOR=$(gh api \
+            "repos/llvm/llvm-project/releases?per_page=50" \
+            --jq '[
+              .[].tag_name
+              | select(test("^llvmorg-[0-9]+\\.[0-9]+\\.[0-9]+$"))
+              | ltrimstr("llvmorg-")
+              | split(".")[0]
+              | tonumber
+            ] | max')
+ 
+          echo "Latest stable LLVM major version: $LATEST_MAJOR"
+          echo "version=$LATEST_MAJOR" >> "$GITHUB_OUTPUT"
+ 
+      - name: Check if version is already tracked on main
+        id: decision
+        uses: mikefarah/yq@master
+        with:
+          cmd: |
+            LATEST=${{ steps.llvm_latest.outputs.version }} 
+            if yq '.jobs.*.strategy.matrix."llvm-version"[]' "$CI_WORKFLOW_FILE" \
+                | grep -qx "$LATEST"; then
+              echo "LLVM $LATEST is already in the matrix on main — nothing to do."
+              echo "needed=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "LLVM $LATEST is not tracked yet — will open a PR."
+              echo "needed=true"  >> "$GITHUB_OUTPUT"
+            fi
+ 
+      - name: Update llvm-version matrix
+        if: steps.decision.outputs.needed == 'true'
+        uses: mikefarah/yq@master
+        with:
+          cmd: >-
+            yq -i
+            '.jobs.*.strategy.matrix."llvm-version" += ["${{ steps.llvm_latest.outputs.version }}"]'
+            "${{ env.CI_WORKFLOW_FILE }}"
+ 
+      - name: Commit, push and open PR
+        if: steps.decision.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_VERSION=${{ steps.llvm_latest.outputs.version }}
+          BRANCH="ci/add-llvm-${NEW_VERSION}"
+ 
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+ 
+          git checkout -b "$BRANCH"
+          git add "$CI_WORKFLOW_FILE"
+          git commit -m "ci: add LLVM ${NEW_VERSION} to test matrix"
+          git push --force-with-lease origin "$BRANCH"
+ 
+          # gh exits non-zero if a PR already exists — suppress it
+          gh pr create \
+            --title "ci: add LLVM ${NEW_VERSION} to test matrix" \
+            --body "LLVM **${NEW_VERSION}** has been released.
+          This PR adds it to the \`llvm-version\` matrix in \`${CI_WORKFLOW_FILE}\`.
+          ---
+          *Opened automatically by the monthly keepalive workflow.*" \
+            --base "$SOURCE_BRANCH" \
+            --head "$BRANCH" \
+          || echo "PR already open for $BRANCH — skipping."
+
+      
 
