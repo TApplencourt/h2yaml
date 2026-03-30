@@ -19,7 +19,7 @@ class DynamicExcludePlugin:
         import re
 
         with temporary_import("h2yaml") as h2yaml:
-            version_string = h2yaml.clang.cindex.Config.get_cindex_library_version()
+            version_string = h2yaml.clang.cindex.Config.get_clang_version()
             h2yaml.clang.cindex.Config.loaded = False
             match = re.search(r"version\s+(\d+)", version_string)
             return int(match.group(1))
