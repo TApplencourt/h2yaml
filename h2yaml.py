@@ -6,7 +6,7 @@
 # ]
 # ///
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 from functools import cache, cached_property
 from collections import deque
@@ -539,6 +539,11 @@ def parse_decl(c: clang.cindex.Cursor):
             | clang.cindex.CursorKind.INCLUSION_DIRECTIVE
         ):
             return
+        case clang.cindex.CursorKind.UNEXPOSED_DECL:
+            # UNEXPOSED_DECL without children are empty declarations (e.g., extra `;`)
+            if not list(c.get_children()):
+                return
+            raise NotImplementedError(f"parse_decl: {k}")  # pragma: no cover
         case _:  # pragma: no cover
             raise NotImplementedError(f"parse_decl: {k}")
 

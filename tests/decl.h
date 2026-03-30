@@ -30,3 +30,5 @@ extern const char *a13;
 int a14[][3];
 
 static int a = 4;
+// Empty declaration
+;
