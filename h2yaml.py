@@ -180,12 +180,12 @@ except AttributeError:  # pragma: no cover
 
 
 try:
-    clang.config.get_cindex_library_version()
+    clang.config.get_clang_version()
 except AttributeError:  # pragma: no cover
     clang.cindex.conf.lib.clang_getClangVersion.restype = clang.cindex._CXString
 
     @attach_to(clang.cindex.Config)
-    def _get_cindex_library_version():
+    def _get_clang_version():
         cx_string = clang.cindex.conf.lib.clang_getClangVersion()
         return str(clang.cindex.conf.lib.clang_getCString(cx_string))
 
@@ -865,7 +865,7 @@ def parse_args(argv):
     parser.add_argument(
         "--clang-version",
         action="version",
-        version=clang.cindex.Config.get_cindex_library_version(),
+        version=clang.cindex.Config.get_clang_version(),
     )
 
     parser.add_argument(
