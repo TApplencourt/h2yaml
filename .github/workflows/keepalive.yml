@@ -80,7 +80,7 @@ jobs:
  
     steps:
       - name: Checkout source branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.SOURCE_BRANCH }}
           token: ${{ secrets.KEEPALIVE_WORKFLOW }}
