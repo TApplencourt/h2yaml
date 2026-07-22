@@ -21,7 +21,7 @@ Based on `libclang` and their [python binding](https://libclang.readthedocs.io/e
 
 For system wide install do:
 ```bash
-pip install https://github.com/TApplencourt/h2yaml.git
+pip install git+https://github.com/TApplencourt/h2yaml.git
 ```
 Then just use `h2yaml` binary.  
 
