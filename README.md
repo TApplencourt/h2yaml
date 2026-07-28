@@ -38,7 +38,10 @@ uv run coverage run --module pytest -vv --full-trace
 uv run coverage report --show-missing --fail-under=100
 ```
 
-Require python `>=3.11`; one cannot write a Parser without Pattern Matching.
+Require python `>=3.10`; one cannot write a Parser without Pattern Matching.
+
+Runtime type checking (the optional `typing` dependency group) uses [`type_enforced`](https://github.com/connor-makowski/type_enforced),
+which is only installed on Python `>=3.11`. On 3.10 the `type_enforced.Enforcer` decorator falls back to a no-op, so annotations are not enforced there.
 
 ## Usage
 

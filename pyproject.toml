@@ -23,7 +23,7 @@ test = [
   "pytest-cov",
   "deepdiff"
 ]
-typing = ["type_enforced"]
+typing = ["type_enforced ; python_version >= '3.11'"]
 typing-test = [{include-group = "typing"}, {include-group = "test"}]
 
 [tool.coverage.run]

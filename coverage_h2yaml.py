@@ -4,8 +4,8 @@ from functools import cached_property
 
 @contextmanager
 def temporary_import(mod_name):
-    import sys
     import importlib
+    import sys
 
     try:
         yield importlib.import_module(mod_name)

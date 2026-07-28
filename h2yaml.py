@@ -8,17 +8,18 @@
 
 __version__ = "0.4.3"
 
-from functools import cache, cached_property
-from collections import deque
-from typing import Callable
+import argparse
 import bisect
+import os
+import re
+import subprocess
 import sys
+from collections import deque
+from collections.abc import Callable, Iterator
+from functools import cache, cached_property
+
 import clang.cindex
 import yaml
-import os
-import subprocess
-import re
-import argparse
 
 try:
     from yaml import CDumper as Dumper
@@ -61,11 +62,11 @@ def next_non_attribute(cursors):
     for c in cursors:
         if not c.kind.is_attribute():
             return c
-    raise Exception("No attribute found")  # pragma: no cover
+    raise AssertionError("No attribute found")  # pragma: no cover
 
 
 @type_enforced.Enforcer
-def h2yaml_warning(c: clang.cindex.Cursor, msg):
+def h2yaml_warning(c: clang.cindex.Cursor, msg: str):
     print(
         f"h2yaml diagnostic: {c.location}: Warning: {msg}",
         file=sys.stderr,
@@ -154,7 +155,7 @@ def attach_to(target):
 
 
 # Ensure libclang is loaded so Cursor.is_null (used by __hash__) is initialized
-clang.cindex.conf.lib
+_ = clang.cindex.conf.lib
 
 # Monkey-patch for missing __hash__ in clang.cindex.Cursor
 # See upstream: https://github.com/llvm/llvm-project/pull/132377
@@ -165,9 +166,9 @@ try:
 except TypeError:  # pragma: no cover
     clang.cindex.Cursor.__hash__ = lambda self: self.hash
 
-# Expose libclang `clang_Cursor_isFunctionInlined` C API
+# Expose potential libclang missing C API, WA arround the lack of versioning
 try:
-    clang.cindex.Cursor().is_function_inlined
+    _ = clang.cindex.Cursor().is_function_inlined
 except AttributeError:  # pragma: no cover
     clang.cindex.conf.lib.clang_Cursor_isFunctionInlined.restype = bool
     clang.cindex.conf.lib.clang_Cursor_isFunctionInlined.argtypes = [
@@ -180,7 +181,7 @@ except AttributeError:  # pragma: no cover
 
 
 try:
-    clang.config.get_clang_version()
+    _ = clang.config.get_clang_version()
 except AttributeError:  # pragma: no cover
     clang.cindex.conf.lib.clang_getClangVersion.restype = clang.cindex._CXString
 
@@ -375,7 +376,7 @@ def _get_interesting_children(self):
 #   |  (_| | _> (/_   __) |_ (_) | (_| (_| (/_   \_ | (_| _> _>
 #                                       _|
 @type_enforced.Enforcer
-def parse_storage_class(c: clang.cindex.Cursor):
+def parse_storage_class(c: clang.cindex.Cursor) -> dict:
     match sc := c.storage_class:
         case clang.cindex.StorageClass.EXTERN:
             return {"storage": "extern"}
@@ -413,9 +414,9 @@ THAPI_types = {
 
 
 @type_enforced.Enforcer
-def parse_function_proto_type(t: clang.cindex.Type, cursors: Callable):
+def parse_function_proto_type(t: clang.cindex.Type, cursors: Iterator) -> dict:
     # https://stackoverflow.com/questions/79356416/how-can-i-get-the-argument-names-of-a-function-types-argument-list
-    def parse_parm_type(i, t: clang.cindex.Type, cursors: Callable):
+    def parse_parm_type(i, t: clang.cindex.Type, cursors: Iterator):
         c = next_non_attribute(cursors)
         d_type = {"type": parse_type(t, c.get_interesting_children())}
 
@@ -448,14 +449,14 @@ def parse_function_proto_type(t: clang.cindex.Type, cursors: Callable):
 
 
 @type_enforced.Enforcer
-def parse_function_noproto_type(t: clang.cindex.Type, cursors: Callable):
+def parse_function_noproto_type(t: clang.cindex.Type, cursors: Iterator) -> dict:
     return {
         "type": parse_type(t.get_result(), cursors),
     }
 
 
 @type_enforced.Enforcer
-def parse_type(t: clang.cindex.Type, cursors: Callable):
+def parse_type(t: clang.cindex.Type, cursors: Iterator) -> dict:
     d_qualified = {}
     if t.is_const_qualified():
         d_qualified["const"] = True
@@ -466,7 +467,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
 
     match k := t.kind:
         case _ if kind := THAPI_types.get(k):
-            names = list(s for s in t.spelling.split() if s not in d_qualified)
+            names = [s for s in t.spelling.split() if s not in d_qualified]
             # Hack to mimic old ruby parser, remove when not needed anymore
             if COMPAT_CAST_TO_YAML and kind == "int" and "int" not in names:
                 names.append("int")
@@ -517,7 +518,7 @@ def parse_type(t: clang.cindex.Type, cursors: Callable):
 #   |  (_| | _> (/_   |_/ (/_ (_ |
 #
 @type_enforced.Enforcer
-def parse_decl(c: clang.cindex.Cursor):
+def parse_decl(c: clang.cindex.Cursor) -> dict | None:
     match k := c.kind:
         case clang.cindex.CursorKind.STRUCT_DECL:
             return {"kind": "struct"} | parse_struct_decl(c)
@@ -555,7 +556,7 @@ def parse_decl(c: clang.cindex.Cursor):
 # `cursors` is an iterator, so impossible to cache
 @cache
 @type_enforced.Enforcer
-def parse_typedef_decl(c: clang.cindex.Cursor):
+def parse_typedef_decl(c: clang.cindex.Cursor) -> dict:
     d_name = {"name": c.spelling}
     # Only call `underlying_typedef_type` if we are interested by the header
     if not (c.is_forward_declaration()) and c.location.is_in_interesting_header:
@@ -571,7 +572,7 @@ def parse_typedef_decl(c: clang.cindex.Cursor):
 #    \/ (_| |    |_/ (/_ (_ |
 #
 @type_enforced.Enforcer
-def parse_var_decl(c: clang.cindex.Cursor):
+def parse_var_decl(c: clang.cindex.Cursor) -> None:
     # Assume all INCOMPLETEARRAY types will eventually be completed.
     # This is safe because libclang treats `a[]` as a
     # "tentative array definition assumed to have one element".
@@ -610,7 +611,7 @@ def parse_var_decl(c: clang.cindex.Cursor):
 #   | |_| | | (_  |_ | (_) | |   |_/ (/_ (_ |
 #
 @type_enforced.Enforcer
-def parse_function_decl(c: clang.cindex.Cursor):
+def parse_function_decl(c: clang.cindex.Cursor) -> dict | None:
     if c.is_definition():
         h2yaml_warning(
             c, f"`{c.spelling}` is a function definition and will be ignored."
@@ -649,7 +650,7 @@ def parse_function_decl(c: clang.cindex.Cursor):
 
 
 @type_enforced.Enforcer
-def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
+def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor) -> dict:
     # Note: This function uses the global variable CACHE_STRUCT_UNION_DECL_REC.
 
     def parse_field_decl(c: clang.cindex.Cursor):
@@ -691,13 +692,13 @@ def _parse_struct_union_decl(name_decl: str, c: clang.cindex.Cursor):
 
 @cache
 @type_enforced.Enforcer
-def parse_struct_decl(c: clang.cindex.Cursor):
+def parse_struct_decl(c: clang.cindex.Cursor) -> dict:
     return _parse_struct_union_decl("structs", c)
 
 
 @cache
 @type_enforced.Enforcer
-def parse_union_decl(c: clang.cindex.Cursor):
+def parse_union_decl(c: clang.cindex.Cursor) -> dict:
     return _parse_struct_union_decl("unions", c)
 
 
@@ -709,7 +710,7 @@ def parse_union_decl(c: clang.cindex.Cursor):
 
 @cache
 @type_enforced.Enforcer
-def parse_enum_decl(c: clang.cindex.Cursor):
+def parse_enum_decl(c: clang.cindex.Cursor) -> dict:
     def parse_enum_constant_del(c: clang.cindex.Cursor):
         assert c.kind == clang.cindex.CursorKind.ENUM_CONSTANT_DECL
 
@@ -804,7 +805,7 @@ def parse_translation_unit(
 def h2yaml(
     file,
     *,
-    clang_args=[],
+    clang_args=None,
     unsaved_files=None,
     pattern=".*",
     canonicalization=False,
@@ -816,10 +817,12 @@ def h2yaml(
         _file_bytes.preload(("<stdin>",), data)
         unsaved_files = [("<stdin>", data)]
 
-    system_args = [f"-I{p}" for p in SystemIncludes.paths]
+    args = clang_args or []
+    args.extend(f"-I{p}" for p in SystemIncludes.paths)
+
     tu = clang.cindex.Index.create().parse(
         file,
-        args=clang_args + system_args,
+        args=args,
         unsaved_files=unsaved_files,
         options=clang.cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD,
     )

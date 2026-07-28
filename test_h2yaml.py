@@ -1,9 +1,11 @@
 import pathlib
-import pytest
-import h2yaml
-import yaml
 import sys
+
+import pytest
+import yaml
 from deepdiff import DeepDiff
+
+import h2yaml
 
 filenames = [str(p.with_suffix("")) for p in pathlib.Path("./tests/").glob("*.h")]
 
