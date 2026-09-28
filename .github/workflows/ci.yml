@@ -13,8 +13,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # type_enforced requires >= 3.11, so the 3.10 job installs without it and
-        # exercises the `except ModuleNotFoundError` fallback in h2yaml.py.
         python-version:
           - "3.10"
           - "3.14"

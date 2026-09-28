@@ -22,10 +22,7 @@ test = [
   "pytest-icdiff",
   "pytest-cov",
   "deepdiff",
-  # type_enforced 2.12.1 rewrites the decorated function's __code__ in place with
-  # a shifted line table, so coverage mis-attributes every decorated body as
-  # unhit. It requires >= 3.11, so the 3.10 CI job runs without it and exercises
-  # the `except ModuleNotFoundError` fallback in h2yaml.py.
+  # type_enforced 2.12.1 have a bug with coverage
   "type_enforced!=2.12.1 ; python_version >= '3.11'",
 ]
 
