@@ -818,7 +818,7 @@ def h2yaml(
         unsaved_files = [("<stdin>", data)]
 
     args = clang_args or []
-    args.extend(f"-I{p}" for p in SystemIncludes.paths)
+    args.extend(f"-isystem{p}" for p in SystemIncludes.paths)
 
     tu = clang.cindex.Index.create().parse(
         file,
