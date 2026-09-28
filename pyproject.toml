@@ -23,7 +23,9 @@ test = [
   "pytest-cov",
   "deepdiff"
 ]
-typing = ["type_enforced ; python_version >= '3.11'"]
+# type_enforced 2.12.1 rewrites the decorated function's __code__ in place with a
+# shifted line table, so coverage mis-attributes every decorated body as unhit.
+typing = ["type_enforced!=2.12.1 ; python_version >= '3.11'"]
 typing-test = [{include-group = "typing"}, {include-group = "test"}]
 
 [tool.coverage.run]
