@@ -95,9 +95,8 @@ class SystemIncludes:
             )
             return []
 
-        regex = r"#include <...> search starts here:(.*?)End of search list"
-        match = re.search(regex, text, re.DOTALL)
-        return match.group(1).split()
+        # Search paths are the only lines indented by a space.
+        return re.findall(r"^ (\S+)", text, re.MULTILINE)
 
 
 @type_enforced.Enforcer
