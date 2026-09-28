@@ -1,0 +1,104 @@
+name: Bump a CI matrix axis
+
+# Shared implementation behind the LLVM and Python matrix bumps.
+# The caller says how to discover the latest version, how to read the
+# current one out of the CI matrix, and how to write the new one back.
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: What is being bumped, for commit/PR text (e.g. "LLVM")
+        required: true
+        type: string
+      ref:
+        description: Branch to read the matrix from and base the PR on
+        required: false
+        default: main
+        type: string
+      workflow-file:
+        description: Workflow file holding the matrix
+        required: true
+        type: string
+      latest-cmd:
+        description: Shell snippet printing the latest available version
+        required: true
+        type: string
+      matrix-path:
+        description: |
+          yq path to the matrix axis holding the versions, oldest to newest
+          (e.g. .jobs.test.strategy.matrix."llvm-version")
+        required: true
+        type: string
+    secrets:
+      token:
+        required: true
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          token: ${{ secrets.token }}
+
+      # latest-cmd may use uv (Python) or gh (LLVM); both are cheap to have.
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Compare latest against the matrix
+        id: check
+        env:
+          # Read-only query against a public repo: use the ephemeral Actions
+          # token. Some orgs (LLVM) reject long-lived fine-grained PATs.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST=$(${{ inputs.latest-cmd }})
+          CURRENT=$(yq '${{ inputs.matrix-path }}[-1]' "${{ inputs.workflow-file }}")
+
+          echo "latest in the wild : ${LATEST:-<none>}"
+          echo "tracked in matrix  : ${CURRENT:-<none>}"
+
+          if [ -z "$LATEST" ] || [ "$LATEST" = "null" ]; then
+            echo "Could not determine the latest ${{ inputs.name }} version" >&2
+            exit 1
+          fi
+
+          if [ -z "$CURRENT" ] || [ "$CURRENT" = "null" ]; then
+            echo "matrix-path matched nothing in ${{ inputs.workflow-file }}" >&2
+            exit 1
+          fi
+
+          echo "version=$LATEST" >> "$GITHUB_OUTPUT"
+          if [ "$CURRENT" = "$LATEST" ]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open PR
+        if: steps.check.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+          VERSION: ${{ steps.check.outputs.version }}
+          TITLE: "ci: test against ${{ inputs.name }} ${{ steps.check.outputs.version }}"
+        run: |
+          yq -i '${{ inputs.matrix-path }} += [strenv(VERSION)]' "${{ inputs.workflow-file }}"
+          git diff --stat
+
+          BRANCH="ci/bump-$(echo "${{ inputs.name }}" | tr '[:upper:]' '[:lower:]')-${VERSION}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git commit -am "$TITLE"
+          git push --force-with-lease origin "$BRANCH"
+
+          # gh exits non-zero if a PR already exists — suppress it
+          gh pr create --title "$TITLE" --base "${{ inputs.ref }}" --head "$BRANCH" \
+            --body "${{ inputs.name }} **${VERSION}** has been released.
+
+          This PR updates the matrix in \`${{ inputs.workflow-file }}\`.
+
+          ---
+          *Opened automatically by the monthly keepalive workflow.*" \
+          || echo "PR already open for $BRANCH — skipping."

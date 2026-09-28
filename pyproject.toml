@@ -21,12 +21,13 @@ test = [
   "pytest",
   "pytest-icdiff",
   "pytest-cov",
-  "deepdiff"
+  "deepdiff",
+  # type_enforced 2.12.1 rewrites the decorated function's __code__ in place with
+  # a shifted line table, so coverage mis-attributes every decorated body as
+  # unhit. It requires >= 3.11, so the 3.10 CI job runs without it and exercises
+  # the `except ModuleNotFoundError` fallback in h2yaml.py.
+  "type_enforced!=2.12.1 ; python_version >= '3.11'",
 ]
-# type_enforced 2.12.1 rewrites the decorated function's __code__ in place with a
-# shifted line table, so coverage mis-attributes every decorated body as unhit.
-typing = ["type_enforced!=2.12.1 ; python_version >= '3.11'"]
-typing-test = [{include-group = "typing"}, {include-group = "test"}]
 
 [tool.coverage.run]
 plugins = ["coverage_h2yaml"]
