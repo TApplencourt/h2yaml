@@ -66,7 +66,7 @@ jobs:
         run: |
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
           # Older LLVMs ship with Ubuntu itself and have no apt.llvm.org repo
-          CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
+          CODENAME=$(source /etc/os-release && echo "$VERSION_CODENAME")
           SUITE="llvm-toolchain-$CODENAME-${{ matrix.llvm-version }}"
           if wget -q --spider "https://apt.llvm.org/$CODENAME/dists/$SUITE/Release"; then
             echo "deb http://apt.llvm.org/$CODENAME/ $SUITE main" | sudo tee /etc/apt/sources.list.d/llvm.list
