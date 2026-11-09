@@ -494,6 +494,18 @@ def parse_type(t: clang.cindex.Type, cursors: Iterator) -> dict:
 
             return d | d_qualified
 
+        case clang.cindex.TypeKind.VECTOR | clang.cindex.TypeKind.EXTVECTOR:
+            # GCC vector_size / clang ext_vector_type. The element type has no
+            # child cursor: resolve a named one through its declaration.
+            e = t.element_type
+            decl = e.get_declaration()
+            return {
+                "kind": "vector",
+                "type": parse_decl(decl)
+                if decl.kind.is_declaration()
+                else parse_type(e, iter(())),
+                "length": t.element_count,
+            } | d_qualified
         case clang.cindex.TypeKind.INCOMPLETEARRAY:
             return {
                 "kind": "array",
