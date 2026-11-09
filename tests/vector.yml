@@ -1,0 +1,75 @@
+functions:
+- name: f
+  params:
+  - name: a
+    type:
+      kind: custom_type
+      name: cl_float4
+  - name: b
+    type:
+      kind: pointer
+      type:
+        const: true
+        kind: custom_type
+        name: int2
+  type:
+    kind: custom_type
+    name: cl_float
+structs:
+- members:
+  - name: a
+    type:
+      kind: custom_type
+      name: int2
+  - name: b
+    type:
+      kind: array
+      length: 2
+      type:
+        kind: custom_type
+        name: float4
+  name: s
+typedefs:
+- name: float4
+  type:
+    kind: vector
+    length: 4
+    type:
+      kind: float
+      name: float
+- name: int2
+  type:
+    kind: vector
+    length: 2
+    type:
+      kind: int
+      name: int
+- name: cl_float
+  type:
+    kind: float
+    name: float
+- name: __cl_float4
+  type:
+    kind: vector
+    length: 4
+    type:
+      kind: custom_type
+      name: cl_float
+- name: cl_float4
+  type:
+    kind: union
+    name: cl_float4
+unions:
+- members:
+  - name: s
+    type:
+      kind: array
+      length: 4
+      type:
+        kind: custom_type
+        name: cl_float
+  - name: v4
+    type:
+      kind: custom_type
+      name: __cl_float4
+  name: cl_float4
